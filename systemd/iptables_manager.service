@@ -7,6 +7,7 @@ After=network-online.target
 [Service]
 Type=oneshot
 EnvironmentFile=-/etc/default/iptables_manager
+RemainAfterExit=true
 ExecStart=/usr/bin/iptables_manager -start $IPTABLES_MANAGER_OPTS
 ExecStop=/usr/bin/iptables_manager -stop $IPTABLES_MANAGER_OPTS
 
