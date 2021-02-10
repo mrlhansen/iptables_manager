@@ -15,7 +15,7 @@ func lsdir(path string) []string {
 
 	list, err := ioutil.ReadDir(path)
 	if err != nil {
-		log.Fatal("unable to read directory: ", path)
+		log.Fatal("unable to read directory ", path)
 	}
 
 	for _,file := range list {
@@ -34,8 +34,10 @@ func read_rules(filename string, replace bool) []string {
 
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Fatal("unable to read file: ", filename)
-	}
+		log.Fatal("unable to read file ", filename)
+	} else {
+        log.Print("reading file ", filename)
+    }
 	text = string(content)
 
 	if replace {

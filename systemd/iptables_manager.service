@@ -6,8 +6,9 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/iptables_manager -start
-ExecStop=/usr/bin/iptables_manager -stop
+EnvironmentFile=-/etc/default/iptables_manager
+ExecStart=/usr/bin/iptables_manager -start $IPTABLES_MANAGER_OPTS
+ExecStop=/usr/bin/iptables_manager -stop $IPTABLES_MANAGER_OPTS
 
 [Install]
 WantedBy=multi-user.target
