@@ -1,0 +1,17 @@
+-D INPUT -j iptmgr-input
+-D OUTPUT -j iptmgr-output
+-D FORWARD -j iptmgr-forward
+-t nat -D PREROUTING -j iptmgr-prerouting
+-t nat -D POSTROUTING -j iptmgr-postrouting
+
+-F iptmgr-input
+-F iptmgr-output
+-F iptmgr-forward
+-t nat -F iptmgr-prerouting
+-t nat -F iptmgr-postrouting
+
+-X iptmgr-input
+-X iptmgr-output
+-X iptmgr-forward
+-t nat -X iptmgr-prerouting
+-t nat -X iptmgr-postrouting

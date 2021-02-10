@@ -1,0 +1,13 @@
+[Unit]
+Description=Simple iptables manager
+Documentation=https://github.com/mrlhansen/iptables_manager
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/iptables_manager -start
+ExecStop=/usr/bin/iptables_manager -stop
+
+[Install]
+WantedBy=multi-user.target
