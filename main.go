@@ -70,7 +70,7 @@ func apply_rules(filename string, rules []string) bool {
 			continue
 		}
 
-		cmd := exec.Command("bash", "-c", "iptables " + rule)
+		cmd := exec.Command("bash", "-c", "iptables -w " + rule)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		err := cmd.Run()
