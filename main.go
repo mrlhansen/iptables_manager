@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sort"
 	"log"
+	"github.com/mrlhansen/iptables_manager/pkg/iptables"
 )
 
 func lsdir(path string) []string {
@@ -124,6 +125,18 @@ func main() {
 	start = flag.Bool("start", false, "start the manager")
 	stop = flag.Bool("stop", false, "stop the manager")
 	flag.Parse()
+
+	h := iptables.Chain{
+		Name: "heej-forward",
+		Parent: "forward",
+		Insert: true,
+		Default: true,
+	}
+
+	err := iptables.CreateChain("filter", &h)
+	if err != nil {
+		log.Print(err)
+	}
 
 	if *stop {
 		manager_stop(path)
