@@ -3,7 +3,10 @@ package iptables
 import (
 	"fmt"
 	"regexp"
+	"sync"
 )
+
+var mu sync.Mutex
 
 const (
 	pattern_subnet       = `(\d{1,3}\.){3}\d{1,3}/\d{1,2}`

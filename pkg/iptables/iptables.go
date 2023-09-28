@@ -1,11 +1,11 @@
 package iptables
 
 import (
-	"fmt"
-	"os/exec"
 	"bytes"
-	"strings"
+	"fmt"
 	"log"
+	"os/exec"
+	"strings"
 )
 
 func iptables_run_command(arg []string) bool {
@@ -13,7 +13,7 @@ func iptables_run_command(arg []string) bool {
 	var stderr bytes.Buffer
 
 	str := strings.Join(arg[:], " ")
-	cmd := exec.Command("bash", "-c", "iptables -w " + str)
+	cmd := exec.Command("bash", "-c", "iptables -w "+str)
 	log.Print("iptables -w " + str)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

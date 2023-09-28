@@ -36,18 +36,12 @@ func BuildRule(m *Rule) (string, error) {
 
 	// Chain
 	chain := strings.ToLower(m.Chain)
-	if table == "nat" {
-		err = checkPattern(pattern_nat_chain, chain, "chain")
-		if err != nil {
-			return "", err
-		}
-	} else {
-		err = checkPattern(pattern_filter_chain, chain, "chain")
-		if err != nil {
-			return "", err
-		}
+	err = ValidateChain(table, chain, true, true)
+	if err != nil {
+		return "", err
 	}
-	cmd.WriteString(" -A " + strings.ToUpper(chain))
+	chain = DefaultChain(table, chain)
+	cmd.WriteString(" -A " + chain)
 
 	// SourceInterface
 	value := m.SourceInterface
@@ -199,4 +193,21 @@ func BuildRule(m *Rule) (string, error) {
 	}
 
 	return cmd.String(), nil
+}
+
+func CreateRules(rules []Rule) error {
+	var rs []string = []string{}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	for n := range rules {
+		s, err := BuildRule(&rules[n])
+		if err != nil {
+			return err
+		}
+		rs = append(rs, s)
+	}
+
+	return nil
 }

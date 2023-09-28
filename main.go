@@ -1,27 +1,28 @@
 package main
 
 import (
-	"flag"
 	"bytes"
-	"io/ioutil"
+	"flag"
+	"log"
 	"os"
 	"os/exec"
-	"strings"
 	"sort"
-	"log"
+	"strings"
+
 	"github.com/mrlhansen/iptables_manager/pkg/iptables"
+	"github.com/mrlhansen/iptables_manager/pkg/registry"
 )
 
 func lsdir(path string) []string {
 	var files []string
 
-	list, err := ioutil.ReadDir(path)
+	list, err := os.ReadDir(path)
 	if err != nil {
 		log.Fatal("unable to read directory ", path)
 	}
 
-	for _,file := range list {
-		if file.IsDir() == false {
+	for _, file := range list {
+		if !file.IsDir() {
 			files = append(files, path+"/"+file.Name())
 		}
 	}
@@ -34,7 +35,7 @@ func read_rules(filename string, replace bool) []string {
 	var lines []string
 	var text string
 
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatal("unable to read file ", filename)
 	} else {
@@ -51,7 +52,7 @@ func read_rules(filename string, replace bool) []string {
 	}
 
 	lines = strings.Split(text, "\n")
-	for i,line := range lines {
+	for i, line := range lines {
 		line = strings.TrimSpace(line)
 		if len(line) > 0 && line[0] == '#' {
 			line = ""
@@ -66,12 +67,12 @@ func apply_rules(filename string, rules []string) bool {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	for i,rule := range rules {
+	for i, rule := range rules {
 		if len(rule) == 0 {
 			continue
 		}
 
-		cmd := exec.Command("bash", "-c", "iptables -w " + rule)
+		cmd := exec.Command("bash", "-c", "iptables -w "+rule)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		err := cmd.Run()
@@ -96,7 +97,7 @@ func manager_start(path string) {
 		os.Exit(1)
 	}
 
-	for _,file = range files {
+	for _, file = range files {
 		rules = read_rules(file, true)
 		ok := apply_rules(file, rules)
 		if !ok {
@@ -127,16 +128,33 @@ func main() {
 	flag.Parse()
 
 	h := iptables.Chain{
-		Name: "heej-forward",
-		Parent: "forward",
-		Insert: true,
-		Default: true,
+		Name:    "heej-forward",
+		Parent:  "forward",
+		Insert:  true,
+		Default: false,
 	}
 
 	err := iptables.CreateChain("filter", &h)
 	if err != nil {
 		log.Print(err)
 	}
+
+	k := iptables.Rule{
+		Table:           "filter",
+		Chain:           "forward",
+		Action:          "accept",
+		SourceInterface: "bond0",
+	}
+
+	str, err := iptables.BuildRule(&k)
+	if err != nil {
+		log.Print(err)
+	} else {
+		log.Print(str)
+	}
+
+	registry.Init(".")
+	registry.New(str)
 
 	if *stop {
 		manager_stop(path)
