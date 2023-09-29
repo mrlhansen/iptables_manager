@@ -50,7 +50,7 @@ func writeEpoch() {
 	}
 }
 
-func updateEpoch(e int64) {
+func updateEpoch() {
 	epoch = currentEpoch()
 	writeEpoch()
 }
