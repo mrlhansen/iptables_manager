@@ -1,7 +1,89 @@
 package main
 
-import "net/http"
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+
+	"github.com/mrlhansen/iptables_manager/pkg/iptables"
+)
+
+const (
+	AuthGuest  int = 1
+	AuthClient int = 2
+	AuthServer int = 3
+)
+
+type RulesPostRequest struct {
+	Rules []iptables.Rule `json:"rules"`
+}
+
+type RulesPostResponse struct {
+	Id string `json:"id"`
+}
+
+type RulesDeleteRequest struct {
+	Id string `json:"id"`
+}
+
+func Authenticate(w http.ResponseWriter, r *http.Request, a int) bool {
+	log.Printf("%s request from %s to %s", r.Method, r.RemoteAddr, r.URL)
+
+	// auth := r.Header.Get("Authorization")
+	// token := strings.TrimPrefix(auth, "Bearer ")
+	// if token != "" {
+	// 	http.Error(w, "", http.StatusUnauthorized)
+	// 	return false
+	// }
+
+	w.Header().Set("Content-Type", "application/json")
+
+	return true
+}
 
 func RulesHandler(w http.ResponseWriter, r *http.Request) {
+	ok := Authenticate(w, r, AuthClient)
+	if !ok {
+		return
+	}
 
+	if r.Method == "POST" {
+		p := RulesPostRequest{}
+		err := json.NewDecoder(r.Body).Decode(&p)
+		if (err != nil) || (len(p.Rules) == 0) {
+			http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
+			return
+		}
+
+		id, err := iptables.CreateRules(p.Rules)
+		if err != nil {
+			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+		}
+
+		q := RulesPostResponse{
+			Id: id,
+		}
+		json.NewEncoder(w).Encode(q)
+
+		return
+	}
+
+	if r.Method == "DELETE" {
+		p := RulesDeleteRequest{}
+		err := json.NewDecoder(r.Body).Decode(&p)
+		if err != nil {
+			http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
+			return
+		}
+
+		err = iptables.DeleteRules(p.Id)
+		if err != nil {
+			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+		}
+
+		return
+	}
+
+	http.Error(w, "", http.StatusBadRequest)
 }

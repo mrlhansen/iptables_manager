@@ -1,27 +1,25 @@
 package iptables
 
 import (
+	"bytes"
 	"fmt"
 	"log"
+	"os/exec"
 	"strings"
 )
 
 func iptables_run_command(arg []string) bool {
-	// var stdout bytes.Buffer
-	// var stderr bytes.Buffer
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
 
 	str := strings.Join(arg[:], " ")
-	// cmd := exec.Command("bash", "-c", "iptables -w "+str)
+	cmd := exec.Command("bash", "-c", "iptables -w "+str)
 	log.Print("iptables -w " + str)
-	// cmd.Stdout = &stdout
-	// cmd.Stderr = &stderr
-	// err := cmd.Run()
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
 
-	// if err != nil {
-	// 	return false
-	// }
-
-	return true
+	return (err == nil)
 }
 
 func iptables_create_chain(table string, chain string) error {
@@ -105,7 +103,7 @@ func iptables_unlink_chains(table string, chain string, parent string) error {
 
 func iptables_create_rule(rule string) error {
 	// Check if the rule exists
-	chk := strings.Replace(rule, " -A ", "-C ", 1)
+	chk := strings.Replace(rule, " -A ", " -C ", 1)
 	chk = strings.Replace(chk, " -I ", " -C ", 1)
 	cmd := []string{chk}
 	ok := iptables_run_command(cmd)
@@ -125,7 +123,7 @@ func iptables_create_rule(rule string) error {
 
 func iptables_delete_rule(rule string) error {
 	// Check if the rule exists
-	chk := strings.Replace(rule, " -A ", "-C ", 1)
+	chk := strings.Replace(rule, " -A ", " -C ", 1)
 	chk = strings.Replace(chk, " -I ", " -C ", 1)
 	cmd := []string{chk}
 	ok := iptables_run_command(cmd)

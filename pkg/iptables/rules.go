@@ -3,6 +3,8 @@ package iptables
 import (
 	"fmt"
 	"strings"
+
+	"github.com/mrlhansen/iptables_manager/pkg/registry"
 )
 
 type Rule struct {
@@ -19,7 +21,7 @@ type Rule struct {
 	NatDestination       string `json:"natDestination"`       // --to-destination or --to-source
 }
 
-func BuildRule(m *Rule) (string, error) {
+func BuildRule(m *Rule, comment string) (string, error) {
 	var cmd strings.Builder
 	var err error
 	var nat bool
@@ -140,9 +142,8 @@ func BuildRule(m *Rule) (string, error) {
 	}
 
 	// Comment
-	value = "My comment"
-	if len(value) > 0 {
-		cmd.WriteString(` -m comment --comment "` + value + `"`)
+	if len(comment) > 0 {
+		cmd.WriteString(` -m comment --comment "` + comment + `"`)
 	}
 
 	// Action
@@ -195,18 +196,53 @@ func BuildRule(m *Rule) (string, error) {
 	return cmd.String(), nil
 }
 
-func CreateRules(rules []Rule) error {
+func CreateRules(rules []Rule) (string, error) {
 	var rs []string = []string{}
 
 	mu.Lock()
 	defer mu.Unlock()
 
+	id, _ := registry.GenerateName()
+
 	for n := range rules {
-		s, err := BuildRule(&rules[n])
+		s, err := BuildRule(&rules[n], id)
 		if err != nil {
-			return err
+			return "", err
 		}
 		rs = append(rs, s)
+	}
+
+	for n := range rs {
+		err := iptables_create_rule(rs[n])
+		if err != nil {
+			// roll back and fail
+			return "", err
+		}
+	}
+
+	s := strings.Join(rs, "\n")
+	s, err := registry.Append(id, s)
+	if err != nil {
+		// roll back and fail
+		return "", err
+	}
+
+	return s, nil
+}
+
+func DeleteRules(id string) error {
+	s := registry.Get(id)
+	if s == "" {
+		return nil // or not found
+	}
+
+	rs := strings.Split(s, "\n")
+	for n := range rs {
+		err := iptables_delete_rule(rs[n])
+		if err != nil {
+			// do we want to continue and try the rest?
+			return err
+		}
 	}
 
 	return nil

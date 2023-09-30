@@ -1,9 +1,8 @@
 package registry
 
 import (
+	"fmt"
 	"log"
-	"strconv"
-	"strings"
 	"sync"
 )
 
@@ -15,12 +14,25 @@ type Entry struct {
 var reg = map[string]Entry{}
 var mu sync.Mutex
 
-func New(s string) (string, error) {
+func GenerateName() (string, int64) {
+	e := currentEpoch()
+	s := fmt.Sprintf("%d+%s", e, randomString(8))
+	return s, e
+}
+
+func ParseName(id string) int64 {
+	var e int64
+	var s string
+	_, err := fmt.Sscanf(id, "%d+%s", &e, &s)
+	if err != nil {
+		return 0
+	}
+	return e
+}
+
+func Append(id, s string) (string, error) {
 	mu.Lock()
 	defer mu.Unlock()
-
-	new_epoch := currentEpoch()
-	id := strconv.FormatInt(new_epoch, 10) + "+" + randomString(8)
 
 	fn := "registry/" + id
 	err := writeFile(fn, s)
@@ -28,8 +40,9 @@ func New(s string) (string, error) {
 		return "", err
 	}
 
+	e := ParseName(id)
 	reg[id] = Entry{
-		Epoch: new_epoch,
+		Epoch: e,
 		Rule:  s,
 	}
 
@@ -88,24 +101,19 @@ func Init(path string) error {
 	}
 
 	for _, fn := range files {
+		e := ParseName(fn)
+		if e == 0 {
+			log.Panicf("invalid filename: %s", fn)
+		}
+
 		path = "registry/" + fn
 		data, err := readFile(path)
 		if err != nil {
 			log.Panicf("failed to read file: %v", err)
 		}
 
-		e, _, found := strings.Cut(fn, "+")
-		if !found {
-			log.Panicf("invalid filename: %s", fn)
-		}
-
-		ep, err := strconv.ParseInt(e, 10, 64)
-		if err != nil {
-			log.Panicf("failed to parse epoch: %s", e)
-		}
-
 		reg[fn] = Entry{
-			Epoch: ep,
+			Epoch: e,
 			Rule:  data,
 		}
 	}
