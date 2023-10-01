@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	AuthGuest  int = 1
+	AuthNone   int = 1
 	AuthClient int = 2
 	AuthServer int = 3
 )
@@ -29,6 +29,11 @@ type RulesDeleteRequest struct {
 
 func Authenticate(w http.ResponseWriter, r *http.Request, a int) bool {
 	log.Printf("%s request from %s to %s", r.Method, r.RemoteAddr, r.URL)
+	w.Header().Set("Content-Type", "application/json")
+
+	if a == AuthNone {
+		return true
+	}
 
 	// auth := r.Header.Get("Authorization")
 	// token := strings.TrimPrefix(auth, "Bearer ")
@@ -36,8 +41,6 @@ func Authenticate(w http.ResponseWriter, r *http.Request, a int) bool {
 	// 	http.Error(w, "", http.StatusUnauthorized)
 	// 	return false
 	// }
-
-	w.Header().Set("Content-Type", "application/json")
 
 	return true
 }
@@ -82,6 +85,23 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 		}
 
+		return
+	}
+
+	http.Error(w, "", http.StatusBadRequest)
+}
+
+func ChainsHandler(w http.ResponseWriter, r *http.Request) {
+	ok := Authenticate(w, r, AuthClient)
+	if !ok {
+		return
+	}
+
+	if r.Method == "POST" {
+		return
+	}
+
+	if r.Method == "DELETE" {
 		return
 	}
 

@@ -40,7 +40,7 @@ func iptables_create_chain(table string, chain string) error {
 	return nil
 }
 
-func iptables_link_chains(table string, chain string, parent string) error {
+func iptables_link_chain(table string, chain string, parent string, insert bool) error {
 	// Check if chains are already linked
 	cmd := []string{"-t", table, "-C", parent, "-j", chain}
 	ok := iptables_run_command(cmd)
@@ -48,8 +48,14 @@ func iptables_link_chains(table string, chain string, parent string) error {
 		return nil
 	}
 
+	// Append or insert
+	opt := "-A"
+	if insert {
+		opt = "-I"
+	}
+
 	// Link chains
-	cmd = []string{"-t", table, "-I", parent, "-j", chain}
+	cmd = []string{"-t", table, opt, parent, "-j", chain}
 	ok = iptables_run_command(cmd)
 	if !ok {
 		return fmt.Errorf("failed to link chain (%s) to parent chain (%s) in table (%s)", chain, parent, table)
@@ -70,20 +76,20 @@ func iptables_delete_chain(table string, chain string) error {
 	cmd = []string{"-t", table, "-F", chain}
 	ok = iptables_run_command(cmd)
 	if !ok {
-		return fmt.Errorf("failed to flush chain (%s) in table (%s)", table, chain)
+		return fmt.Errorf("failed to flush chain (%s) in table (%s)", chain, table)
 	}
 
 	// Delete chain
 	cmd = []string{"-t", table, "-X", chain}
 	ok = iptables_run_command(cmd)
 	if !ok {
-		return fmt.Errorf("failed to delete chain (%s) in table (%s)", table, chain)
+		return fmt.Errorf("failed to delete chain (%s) in table (%s)", chain, table)
 	}
 
 	return nil
 }
 
-func iptables_unlink_chains(table string, chain string, parent string) error {
+func iptables_unlink_chain(table string, chain string, parent string) error {
 	// Check if chains are linked
 	cmd := []string{"-t", table, "-C", parent, "-j", chain}
 	ok := iptables_run_command(cmd)
@@ -95,7 +101,7 @@ func iptables_unlink_chains(table string, chain string, parent string) error {
 	cmd = []string{"-t", table, "-D", parent, "-j", chain}
 	ok = iptables_run_command(cmd)
 	if !ok {
-		return fmt.Errorf("failed to unlink chain (%s) from parent chain (%s) in table (%s)", table, chain, parent)
+		return fmt.Errorf("failed to unlink chain (%s) from parent chain (%s) in table (%s)", chain, parent, table)
 	}
 
 	return nil

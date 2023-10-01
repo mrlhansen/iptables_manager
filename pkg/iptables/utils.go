@@ -13,8 +13,8 @@ const (
 	pattern_destination  = `(\d{1,3}\.){3}\d{1,3}(:\d{1,4})?`
 	pattern_interface    = `[a-z0-9]+(\.(\d{1,4}|0x[0-9a-f]{1,4}))?`
 	pattern_ports        = `(\d{1,5}(:\d{1,5})?,)*?(\d{1,5}(:\d{1,5})?)`
-	pattern_nat_chain    = `(([a-z]+)-)?(input|output|prerouting|postrouting)`
-	pattern_filter_chain = `(([a-z]+)-)?(input|output|forward)`
+	pattern_nat_chain    = `(\w+\-)?(input|output|prerouting|postrouting)`
+	pattern_filter_chain = `(\w+\-)?(input|output|forward)`
 )
 
 func checkPattern(pattern, value, name string) error {
