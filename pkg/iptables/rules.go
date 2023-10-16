@@ -196,7 +196,51 @@ func BuildRule(m *Rule, comment string) (string, error) {
 	return cmd.String(), nil
 }
 
-func CreateRules(rules []Rule) (string, error) {
+func DeleteRules(s string) error {
+	rs := strings.Split(s, "\n")
+
+	for _, rule := range rs {
+		rule = strings.TrimSpace(rule)
+		if len(rule) == 0 {
+			continue
+		}
+		if rule[0] == '#' {
+			continue
+		}
+
+		err := iptables_delete_rule(rule)
+		if err != nil {
+			// do we want to continue and try the rest?
+			return err
+		}
+	}
+
+	return nil
+}
+
+func CreateRules(s string) error {
+	rs := strings.Split(s, "\n")
+
+	for _, rule := range rs {
+		rule = strings.TrimSpace(rule)
+		if len(rule) == 0 {
+			continue
+		}
+		if rule[0] == '#' {
+			continue
+		}
+
+		err := iptables_create_rule(rule)
+		if err != nil {
+			// roll back and fail - we can call DeleteRules on the same input
+			return err
+		}
+	}
+
+	return nil
+}
+
+func CreateRuleSet(rules []Rule) (string, error) {
 	var rs []string = []string{}
 
 	mu.Lock()
@@ -212,37 +256,35 @@ func CreateRules(rules []Rule) (string, error) {
 		rs = append(rs, s)
 	}
 
-	for n := range rs {
-		err := iptables_create_rule(rs[n])
-		if err != nil {
-			// roll back and fail
-			return "", err
-		}
-	}
-
 	s := strings.Join(rs, "\n")
-	s, err := registry.Append(id, s)
+	err := CreateRules(s)
 	if err != nil {
-		// roll back and fail
 		return "", err
 	}
 
-	return s, nil
+	err = registry.Append(id, s)
+	if err != nil {
+		// roll back and fail - we can call DeleteRules on the same input
+		return "", err
+	}
+
+	return id, nil
 }
 
-func DeleteRules(id string) error {
+func DeleteRuleSet(id string) error {
 	s := registry.Get(id)
 	if s == "" {
 		return nil // or not found
 	}
 
-	rs := strings.Split(s, "\n")
-	for n := range rs {
-		err := iptables_delete_rule(rs[n])
-		if err != nil {
-			// do we want to continue and try the rest?
-			return err
-		}
+	err := DeleteRules(s)
+	if err != nil {
+		return err
+	}
+
+	err = registry.Delete(id)
+	if err != nil {
+		return err
 	}
 
 	return nil

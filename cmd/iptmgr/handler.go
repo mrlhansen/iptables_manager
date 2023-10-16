@@ -59,7 +59,7 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		id, err := iptables.CreateRules(p.Rules)
+		id, err := iptables.CreateRuleSet(p.Rules)
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 		}
@@ -80,7 +80,7 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = iptables.DeleteRules(p.Id)
+		err = iptables.DeleteRuleSet(p.Id)
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 		}

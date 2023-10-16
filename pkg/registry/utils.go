@@ -11,7 +11,7 @@ import (
 )
 
 var epoch int64
-var basepath string = "."
+var basepath string
 
 func randomString(n int) string {
 	var sb strings.Builder

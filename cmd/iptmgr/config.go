@@ -14,11 +14,21 @@ type ConfigChains struct {
 }
 
 type Config struct {
+	Listen  string        `yaml:"listen"`
+	Purge   bool          `yaml:"purge-on-exit"`
 	DataDir string        `yaml:"datadir"`
 	Chains  *ConfigChains `yaml:"chains"`
 }
 
 var config = Config{}
+
+func getEnvString(env string, def string) string {
+	value := os.Getenv(env)
+	if len(value) == 0 {
+		return def
+	}
+	return value
+}
 
 func readConfig(fn string) {
 	fp, err := os.Open(fn)

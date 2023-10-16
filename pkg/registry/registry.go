@@ -30,14 +30,14 @@ func ParseName(id string) int64 {
 	return e
 }
 
-func Append(id, s string) (string, error) {
+func Append(id, s string) error {
 	mu.Lock()
 	defer mu.Unlock()
 
 	fn := "registry/" + id
 	err := writeFile(fn, s)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	e := ParseName(id)
@@ -47,7 +47,7 @@ func Append(id, s string) (string, error) {
 	}
 
 	updateEpoch()
-	return id, nil
+	return nil
 }
 
 func Get(id string) string {
@@ -72,11 +72,24 @@ func Delete(id string) error {
 		if err != nil {
 			return err
 		}
+
 		delete(reg, id)
+		updateEpoch()
 	}
 
-	updateEpoch()
 	return nil
+}
+
+func List() []string {
+	mu.Lock()
+	defer mu.Unlock()
+
+	rs := []string{}
+	for id := range reg {
+		rs = append(rs, id)
+	}
+
+	return rs
 }
 
 func Init(path string) error {
@@ -88,37 +101,37 @@ func Init(path string) error {
 
 	err := makeDir("registry")
 	if err != nil {
-		log.Panicf("failed to create directory: %v", err)
+		return fmt.Errorf("registry: failed to create directory: %v", err)
 	}
 
 	files, err := listDir("registry")
 	if err != nil {
-		log.Panicf("failed to list directory: %v", err)
+		return fmt.Errorf("registry: failed to list directory: %v", err)
 	}
 
 	if epoch == 0 && len(files) > 0 {
-		log.Panic("found existing rules, but epoch was not set")
+		return fmt.Errorf("registry: found existing rules, but epoch is missing")
 	}
 
 	for _, fn := range files {
 		e := ParseName(fn)
 		if e == 0 {
-			log.Panicf("invalid filename: %s", fn)
+			return fmt.Errorf("registry: invalid filename: %s", fn)
 		}
 
 		path = "registry/" + fn
 		data, err := readFile(path)
 		if err != nil {
-			log.Panicf("failed to read file: %v", err)
+			return fmt.Errorf("registry: failed to read file: %v", err)
 		}
 
 		reg[fn] = Entry{
 			Epoch: e,
 			Rule:  data,
 		}
-	}
 
-	// apply rules and dont fail if they alreay exists
+		log.Printf("registry: loaded file: %s", fn)
+	}
 
 	return nil
 }
