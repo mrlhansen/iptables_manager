@@ -63,10 +63,19 @@ func main() {
 	log.Printf("> purge-on-exit = %v", purge)
 
 	// Create chains
-	createChains()
+	err := createChains()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Load static rules
+	err = loadStaticRules(datadir, true)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Load registry
-	err := registry.Init(datadir)
+	err = registry.Init(datadir)
 	if err != nil {
 		log.Fatal(err)
 	}

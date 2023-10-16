@@ -109,8 +109,8 @@ func iptables_unlink_chain(table string, chain string, parent string) error {
 
 func iptables_create_rule(rule string) error {
 	// Check if the rule exists
-	chk := strings.Replace(rule, " -A ", " -C ", 1)
-	chk = strings.Replace(chk, " -I ", " -C ", 1)
+	chk := strings.Replace(rule, "-A ", "-C ", 1)
+	chk = strings.Replace(chk, "-I ", "-C ", 1)
 	cmd := []string{chk}
 	ok := iptables_run_command(cmd)
 	if ok {
@@ -129,8 +129,8 @@ func iptables_create_rule(rule string) error {
 
 func iptables_delete_rule(rule string) error {
 	// Check if the rule exists
-	chk := strings.Replace(rule, " -A ", " -C ", 1)
-	chk = strings.Replace(chk, " -I ", " -C ", 1)
+	chk := strings.Replace(rule, "-A ", "-C ", 1)
+	chk = strings.Replace(chk, "-I ", "-C ", 1)
 	cmd := []string{chk}
 	ok := iptables_run_command(cmd)
 	if !ok {
@@ -138,7 +138,7 @@ func iptables_delete_rule(rule string) error {
 	}
 
 	// Delete rule
-	chk = strings.Replace(chk, " -C ", " -D ", 1)
+	chk = strings.Replace(chk, "-C ", "-D ", 1)
 	cmd = []string{chk}
 	ok = iptables_run_command(cmd)
 	if !ok {

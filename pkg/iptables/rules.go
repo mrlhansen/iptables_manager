@@ -241,11 +241,10 @@ func CreateRules(s string) error {
 }
 
 func CreateRuleSet(rules []Rule) (string, error) {
-	var rs []string = []string{}
-
 	mu.Lock()
 	defer mu.Unlock()
 
+	rs := []string{}
 	id, _ := registry.GenerateName()
 
 	for n := range rules {
@@ -272,6 +271,9 @@ func CreateRuleSet(rules []Rule) (string, error) {
 }
 
 func DeleteRuleSet(id string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	s := registry.Get(id)
 	if s == "" {
 		return nil // or not found

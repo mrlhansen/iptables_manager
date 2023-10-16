@@ -43,22 +43,24 @@ func readConfig(fn string) {
 	}
 }
 
-func createChains() {
+func createChains() error {
 	if config.Chains == nil {
-		return
+		return nil
 	}
 
 	for _, chain := range config.Chains.Filter {
 		err := iptables.CreateChain("filter", &chain)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
 
 	for _, chain := range config.Chains.Nat {
 		err := iptables.CreateChain("nat", &chain)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
+
+	return nil
 }
