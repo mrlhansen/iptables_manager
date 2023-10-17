@@ -17,6 +17,7 @@ type Config struct {
 	Listen  string        `yaml:"listen"`
 	Purge   bool          `yaml:"purge-on-exit"`
 	DataDir string        `yaml:"datadir"`
+	LogFile string        `yaml:"logfile"`
 	Chains  *ConfigChains `yaml:"chains"`
 }
 
@@ -41,26 +42,4 @@ func readConfig(fn string) {
 	if err != nil {
 		log.Fatalf("error parsing configuration file %s: %s", fn, err)
 	}
-}
-
-func createChains() error {
-	if config.Chains == nil {
-		return nil
-	}
-
-	for _, chain := range config.Chains.Filter {
-		err := iptables.CreateChain("filter", &chain)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, chain := range config.Chains.Nat {
-		err := iptables.CreateChain("nat", &chain)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

@@ -46,7 +46,7 @@ func writeEpoch() {
 	s := strconv.FormatInt(epoch, 10)
 	err := writeFile("epoch", s)
 	if err != nil {
-		log.Printf("Failed to write Epoch")
+		log.Printf("Failed to write epoch")
 	}
 }
 
@@ -70,7 +70,7 @@ func readFile(fn string) (string, error) {
 
 func writeFile(fn string, data string) error {
 	path := basepath + "/" + fn
-	err := os.WriteFile(path, []byte(data), 0o640)
+	err := os.WriteFile(path, []byte(data), 0640)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func deleteFile(fn string) error {
 
 func makeDir(fn string) error {
 	path := basepath + "/" + fn
-	err := os.MkdirAll(path, 0o750)
+	err := os.MkdirAll(path, 0750)
 	if err != nil {
 		return err
 	}

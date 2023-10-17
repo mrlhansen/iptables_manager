@@ -1,5 +1,0 @@
-# Accept forwarding
--A FORWARD -d 172.16.0.0/12 -j ACCEPT
-
-# Masquerade traffic
--t nat -A POSTROUTING -d 172.16.0.0/12 -j MASQUERADE

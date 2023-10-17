@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -24,14 +25,26 @@ func flagNotPassed(name string) bool {
 	return !found
 }
 
+func onExit(purge bool) {
+	// we might want to expand this function to also remove static rules and all rules (not just chains)
+	if purge {
+		err := iptables.PurgeChains()
+		if err != nil {
+			log.Print(err)
+		}
+	}
+}
+
 func main() {
 	var cfgfile string
 	var datadir string
 	var listen string
+	var logfile string
 	var purge bool
 
 	flag.StringVar(&cfgfile, "config", "config.yml", "Path to configuration file")
 	flag.StringVar(&datadir, "datadir", ".", "Path to persistent data storage")
+	flag.StringVar(&logfile, "logfile", "my.log", "Path to log file")
 	flag.StringVar(&listen, "listen", ":1234", "Listen address for web interface")
 	flag.BoolVar(&purge, "purge-on-exit", false, "Purge all custom chains on exit")
 
@@ -52,13 +65,33 @@ func main() {
 		}
 	}
 
+	if flagNotPassed("logfile") {
+		s := getEnvString("LOGFILE", config.LogFile)
+		if len(s) > 0 {
+			logfile = s
+		}
+	}
+
 	if flagNotPassed("purge-on-exit") {
 		purge = config.Purge
 	}
 
+	// Configure logging
+	// log.SetFlags(log.LstdFlags | log.Lshortfile)
+	if len(logfile) > 0 {
+		f, err := os.OpenFile("my.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0640)
+		if err != nil {
+			log.Fatal("Failed to open log file")
+		}
+		w := io.MultiWriter(f, os.Stdout)
+		log.SetOutput(w)
+	}
+
+	// Options
 	log.Printf("registered configuration options")
 	log.Printf("> config  = %s", cfgfile)
 	log.Printf("> datadir = %s", datadir)
+	log.Printf("> logfile = %s", logfile)
 	log.Printf("> listen  = %s", listen)
 	log.Printf("> purge-on-exit = %v", purge)
 
@@ -69,7 +102,7 @@ func main() {
 	}
 
 	// Load static rules
-	err = loadStaticRules(datadir, true)
+	err = loadRules(datadir, true)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -118,12 +151,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if purge {
-		err := iptables.PurgeChains()
-		if err != nil {
-			log.Print(err)
-		}
-	}
-
+	onExit(purge)
 	cancel()
 }

@@ -11,7 +11,29 @@ import (
 	"github.com/mrlhansen/iptables_manager/pkg/iptables"
 )
 
-func sanitizeRules(s *string) error {
+func createChains() error {
+	if config.Chains == nil {
+		return nil
+	}
+
+	for _, chain := range config.Chains.Filter {
+		err := iptables.CreateChain("filter", &chain)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, chain := range config.Chains.Nat {
+		err := iptables.CreateChain("nat", &chain)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func sanitizeRules(s *string, defchain bool) error {
 	nre := regexp.MustCompile(`-t\s+nat`)
 	cre := regexp.MustCompile(`-[AI]\s+([\w\-]+)`)
 
@@ -45,8 +67,11 @@ func sanitizeRules(s *string) error {
 			return err
 		}
 
-		chain = iptables.DefaultChain(table, chain)
-		rule = strings.Replace(rule, rawchain, chain, 1)
+		if defchain {
+			chain = iptables.DefaultChain(table, chain)
+			rule = strings.Replace(rule, rawchain, chain, 1)
+		}
+
 		out = append(out, rule)
 	}
 
@@ -54,7 +79,7 @@ func sanitizeRules(s *string) error {
 	return nil
 }
 
-func loadStaticRules(basepath string, defchain bool) error {
+func loadRules(basepath string, defchain bool) error {
 	var files []string
 	var rs []string
 
@@ -82,9 +107,11 @@ func loadStaticRules(basepath string, defchain bool) error {
 			return err
 		}
 
+		log.Printf("loading static rules: %s", fn)
+
 		s := string(data)
-		if err := sanitizeRules(&s); err != nil {
-			log.Print(err)
+		err = sanitizeRules(&s, defchain)
+		if err != nil {
 			return nil
 		}
 

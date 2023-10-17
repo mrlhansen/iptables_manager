@@ -12,9 +12,9 @@ func iptables_run_command(arg []string) bool {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	str := strings.Join(arg[:], " ")
-	cmd := exec.Command("bash", "-c", "iptables -w "+str)
-	log.Print("iptables -w " + str)
+	str := "iptables -w " + strings.Join(arg[:], " ")
+	cmd := exec.Command("bash", "-c", str)
+	log.Print(str)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
