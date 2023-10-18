@@ -187,10 +187,8 @@ func BuildRule(m *Rule, comment string) (string, error) {
 		} else {
 			cmd.WriteString(" --to-destination " + value)
 		}
-	} else {
-		if nat {
-			return "", fmt.Errorf("action (%s) requires use of nat destination", action)
-		}
+	} else if nat {
+		return "", fmt.Errorf("action (%s) requires use of nat destination", action)
 	}
 
 	return cmd.String(), nil

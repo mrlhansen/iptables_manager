@@ -6,8 +6,17 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gorilla/websocket"
 	"github.com/mrlhansen/iptables_manager/pkg/iptables"
 )
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  4096,
+	WriteBufferSize: 4096,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
 
 const (
 	AuthNone   int = 1
@@ -91,19 +100,25 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "", http.StatusBadRequest)
 }
 
-func ChainsHandler(w http.ResponseWriter, r *http.Request) {
-	ok := Authenticate(w, r, AuthClient)
+func ClusterHandler(w http.ResponseWriter, r *http.Request) {
+	ok := Authenticate(w, r, AuthServer)
 	if !ok {
 		return
 	}
 
-	if r.Method == "POST" {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("upgrade failed: %v", err)
 		return
 	}
 
-	if r.Method == "DELETE" {
-		return
+	client := &Client{
+		addr: r.RemoteAddr,
+		conn: conn,
+		send: make(chan []byte),
 	}
 
-	http.Error(w, "", http.StatusBadRequest)
+	hub.join <- client
+	go client.read()
+	go client.write()
 }

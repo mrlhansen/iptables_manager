@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/mrlhansen/iptables_manager/pkg/iptables"
-	"github.com/mrlhansen/iptables_manager/pkg/registry"
 )
 
 func flagNotPassed(name string) bool {
@@ -27,6 +26,7 @@ func flagNotPassed(name string) bool {
 
 func onExit(purge bool) {
 	// we might want to expand this function to also remove static rules and all rules (not just chains)
+	// gracefully close connections to clients
 	if purge {
 		err := iptables.PurgeChains()
 		if err != nil {
@@ -41,6 +41,8 @@ func main() {
 	var listen string
 	var logfile string
 	var purge bool
+
+	// Check for root or iptables permissions?
 
 	flag.StringVar(&cfgfile, "config", "config.yml", "Path to configuration file")
 	flag.StringVar(&datadir, "datadir", ".", "Path to persistent data storage")
@@ -79,7 +81,7 @@ func main() {
 	// Configure logging
 	// log.SetFlags(log.LstdFlags | log.Lshortfile)
 	if len(logfile) > 0 {
-		f, err := os.OpenFile("my.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0640)
+		f, err := os.OpenFile(logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0640)
 		if err != nil {
 			log.Fatal("Failed to open log file")
 		}
@@ -95,37 +97,40 @@ func main() {
 	log.Printf("> listen  = %s", listen)
 	log.Printf("> purge-on-exit = %v", purge)
 
-	// Create chains
-	err := createChains()
-	if err != nil {
-		log.Fatal(err)
-	}
+	// // Create chains
+	// err := createChains()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	// Load static rules
-	err = loadRules(datadir, true)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// // Load static rules
+	// err = loadRules(datadir, true)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	// Load registry
-	err = registry.Init(datadir)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// // Load registry
+	// err = registry.Init(datadir)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	rs := registry.List()
-	for _, id := range rs {
-		s := registry.Get(id)
-		err := iptables.CreateRules(s)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+	// rs := registry.List()
+	// for _, id := range rs {
+	// 	s := registry.Get(id)
+	// 	err := iptables.CreateRules(s)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// }
+
+	// Start Hub
+	go hub.run()
 
 	// HTTP Server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/iptables/rules", RulesHandler)
-	mux.HandleFunc("/api/v1/iptables/chains", ChainsHandler)
+	mux.HandleFunc("/api/v1/cluster", ClusterHandler)
 
 	server := &http.Server{
 		Addr:    listen,
