@@ -44,6 +44,14 @@ func Authenticate(w http.ResponseWriter, r *http.Request, a int) bool {
 		return true
 	}
 
+	if a == AuthServer {
+		uuid := r.Header.Get("Instance-UUID")
+		if len(uuid) != 36 {
+			http.Error(w, "", http.StatusBadRequest)
+			return false
+		}
+	}
+
 	// auth := r.Header.Get("Authorization")
 	// token := strings.TrimPrefix(auth, "Bearer ")
 	// if token != "" {
@@ -101,18 +109,31 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ClusterHandler(w http.ResponseWriter, r *http.Request) {
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+
 	ok := Authenticate(w, r, AuthServer)
 	if !ok {
 		return
 	}
 
-	conn, err := upgrader.Upgrade(w, r, nil)
+	uuid := r.Header.Get("Instance-UUID")
+	if hub.exists(uuid) {
+		http.Error(w, "", http.StatusConflict)
+		return
+	}
+
+	header := http.Header{
+		"Instance-UUID": []string{hub.uuid},
+	}
+	conn, err := upgrader.Upgrade(w, r, header)
 	if err != nil {
 		log.Printf("upgrade failed: %v", err)
 		return
 	}
 
 	client := &Client{
+		uuid: uuid,
 		addr: r.RemoteAddr,
 		conn: conn,
 		send: make(chan []byte),

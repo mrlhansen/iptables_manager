@@ -40,6 +40,7 @@ func main() {
 	var datadir string
 	var listen string
 	var logfile string
+	var peer string
 	var purge bool
 
 	// Check for root or iptables permissions?
@@ -48,6 +49,7 @@ func main() {
 	flag.StringVar(&datadir, "datadir", ".", "Path to persistent data storage")
 	flag.StringVar(&logfile, "logfile", "my.log", "Path to log file")
 	flag.StringVar(&listen, "listen", ":1234", "Listen address for web interface")
+	flag.StringVar(&peer, "peer", "", "List of peers")
 	flag.BoolVar(&purge, "purge-on-exit", false, "Purge all custom chains on exit")
 
 	flag.Parse()
@@ -126,6 +128,12 @@ func main() {
 
 	// Start Hub
 	go hub.run()
+
+	if len(peer) > 0 {
+		hub.connect(peer)
+	}
+
+	go hub.reconnect() // must go after all connection attempts
 
 	// HTTP Server
 	mux := http.NewServeMux()

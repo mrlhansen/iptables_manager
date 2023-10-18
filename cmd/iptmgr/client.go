@@ -14,6 +14,7 @@ const (
 )
 
 type Client struct {
+	uuid string
 	addr string
 	conn *websocket.Conn
 	send chan []byte
