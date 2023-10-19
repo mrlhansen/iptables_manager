@@ -44,6 +44,7 @@ func (h *Hub) run() {
 			log.Printf("hub: client left: addr=%s uuid=%s", client.addr, client.uuid)
 		case message := <-h.message:
 			log.Printf("hub: message received: %s", message)
+			RecvMessage(message)
 		}
 	}
 }

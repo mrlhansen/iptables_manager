@@ -50,15 +50,15 @@ func Append(id, s string) error {
 	return nil
 }
 
-func Get(id string) string {
+func Get(id string) *Entry {
 	mu.Lock()
 	defer mu.Unlock()
 
 	e, ok := reg[id]
 	if ok {
-		return e.Rule
+		return &e
 	}
-	return ""
+	return nil
 }
 
 func Delete(id string) error {

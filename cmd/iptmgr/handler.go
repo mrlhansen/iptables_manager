@@ -76,7 +76,12 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		id, err := iptables.CreateRuleSet(p.Rules)
+		id, rules, err := iptables.PrepareRuleSet(p.Rules)
+		if err != nil {
+			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+		}
+
+		err = iptables.CreateRuleSet(id, rules)
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 		}
@@ -86,6 +91,7 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		json.NewEncoder(w).Encode(q)
 
+		go SendRuleAppend(id) // move this to CreateRuleSet
 		return
 	}
 
@@ -102,6 +108,7 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 		}
 
+		go SendRuleDelete(p.Id) // move this to DeleteRuleSet
 		return
 	}
 

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/mrlhansen/iptables_manager/pkg/iptables"
+	"github.com/mrlhansen/iptables_manager/pkg/registry"
 )
 
 func flagNotPassed(name string) bool {
@@ -99,32 +100,32 @@ func main() {
 	log.Printf("> listen  = %s", listen)
 	log.Printf("> purge-on-exit = %v", purge)
 
-	// // Create chains
-	// err := createChains()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	// Create chains
+	err := createChains()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// // Load static rules
-	// err = loadRules(datadir, true)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	// Load static rules
+	err = loadRules(datadir, true)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// // Load registry
-	// err = registry.Init(datadir)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	// Load registry
+	err = registry.Init(datadir)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// rs := registry.List()
-	// for _, id := range rs {
-	// 	s := registry.Get(id)
-	// 	err := iptables.CreateRules(s)
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// }
+	rs := registry.List()
+	for _, id := range rs {
+		s := registry.Get(id)
+		err := iptables.CreateRules(s.Rule)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	// Start Hub
 	go hub.run()

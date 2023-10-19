@@ -238,34 +238,38 @@ func CreateRules(s string) error {
 	return nil
 }
 
-func CreateRuleSet(rules []Rule) (string, error) {
-	mu.Lock()
-	defer mu.Unlock()
-
+func PrepareRuleSet(rules []Rule) (string, string, error) {
 	rs := []string{}
 	id, _ := registry.GenerateName()
 
 	for n := range rules {
 		s, err := BuildRule(&rules[n], id)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		rs = append(rs, s)
 	}
 
 	s := strings.Join(rs, "\n")
+	return id, s, nil
+}
+
+func CreateRuleSet(id, s string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	err := CreateRules(s)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	err = registry.Append(id, s)
 	if err != nil {
 		// roll back and fail - we can call DeleteRules on the same input
-		return "", err
+		return err
 	}
 
-	return id, nil
+	return nil
 }
 
 func DeleteRuleSet(id string) error {
@@ -273,11 +277,11 @@ func DeleteRuleSet(id string) error {
 	defer mu.Unlock()
 
 	s := registry.Get(id)
-	if s == "" {
+	if s == nil {
 		return nil // or not found
 	}
 
-	err := DeleteRules(s)
+	err := DeleteRules(s.Rule)
 	if err != nil {
 		return err
 	}
