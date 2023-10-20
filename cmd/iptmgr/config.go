@@ -14,11 +14,11 @@ type SectionChains struct {
 }
 
 type SectionOptions struct {
-	DataPath    string   `yaml:"data-path"`
-	LogFile     string   `yaml:"log-file"`
-	Listen      string   `yaml:"listen"`
-	Peers       []string `yaml:"peers"`
-	PurgeOnExit bool     `yaml:"purge-on-exit"`
+	DataPath    string `yaml:"data-path"`
+	LogFile     string `yaml:"log-file"`
+	Listen      string `yaml:"listen"`
+	Peers       string `yaml:"peers"`
+	PurgeOnExit bool   `yaml:"purge-on-exit"`
 }
 
 type Config struct {

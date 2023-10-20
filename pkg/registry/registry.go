@@ -15,6 +15,10 @@ var reg = map[string]Entry{}
 var epoch Epoch
 var mu sync.Mutex
 
+func GetEpoch() int64 {
+	return epoch.Latest
+}
+
 func GenerateName() (string, int64) {
 	e := epoch.Now()
 	s := fmt.Sprintf("%d+%s", e, randomString(8))
@@ -100,6 +104,7 @@ func Init(path string) error {
 	basepath = path
 	epoch.SetFile(basepath + "/epoch")
 	epoch.Load()
+	log.Printf("epoch loaded: latest=%v checksum=%v", epoch.Latest, epoch.Checksum)
 
 	err := makeDir("registry")
 	if err != nil {

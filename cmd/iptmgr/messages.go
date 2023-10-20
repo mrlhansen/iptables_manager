@@ -9,19 +9,21 @@ import (
 )
 
 const (
-	MessageCreateRuleSet       = 1
-	MessageDeleteRuleSet       = 2
-	MessageRequestRuleSet      = 3 // Response is CreateRuleSet
-	MessageSynchronizeRegistry = 4 // Rename to MessageRegistryList ?
+	MessageCreateRuleSet  = 1
+	MessageDeleteRuleSet  = 2
+	MessageRequestRuleSet = 3 // Response is CreateRuleSet
+	MessageRegistryList   = 4
 )
 
 type Message struct {
-	Type int    `json:"type"`
-	Name string `json:"name,omitempty"`
-	Data []byte `json:"data,omitempty"`
+	client *Client
+	Type   int    `json:"type"`
+	Epoch  int64  `json:"epoch,omitempty"`
+	Name   string `json:"name,omitempty"`
+	Data   []byte `json:"data,omitempty"`
 }
 
-func SendCreateRuleSet(id string) {
+func SendCreateRuleSet(id string, c *Client) {
 	s := registry.Get(id)
 	if s == nil {
 		return
@@ -32,41 +34,60 @@ func SendCreateRuleSet(id string) {
 		return
 	}
 
-	m := Message{
+	m := &Message{
 		Type: MessageCreateRuleSet,
 		Name: id,
 		Data: data,
 	}
 
-	msg, err := json.Marshal(m)
-	if err != nil {
-		return
-	}
-
-	log.Printf("Broadcasting CreateRuleSet: %s", id)
-	hub.Broadcast(msg)
+	log.Printf("Messages: SendCreateRuleSet: id=%s", id)
+	hub.SendOrBroadcast(m, c)
 }
 
-func SendDeleteRuleSet(id string) {
-	m := Message{
+func SendDeleteRuleSet(id string, c *Client) {
+	m := &Message{
 		Type: MessageDeleteRuleSet,
 		Name: id,
 	}
 
-	msg, err := json.Marshal(m)
+	log.Printf("Messages: SendDeleteRuleSet: id=%s", id)
+	hub.SendOrBroadcast(m, c)
+}
+
+func SendRequestRuleSet(id string, c *Client) {
+	m := &Message{
+		Type: MessageRequestRuleSet,
+		Name: id,
+	}
+
+	log.Printf("Messages: SendRequestRuleSet: id=%s", id)
+	hub.SendOrBroadcast(m, c)
+}
+
+func SendRegistryList(c *Client) {
+	r := registry.List()
+	data, err := json.Marshal(r)
 	if err != nil {
 		return
 	}
 
-	log.Printf("Broadcasting DeleteRuleSet: %s", id)
-	hub.Broadcast(msg)
+	m := &Message{
+		Type:  MessageRegistryList,
+		Epoch: registry.GetEpoch(),
+		Data:  data,
+	}
+
+	if c != nil {
+		log.Printf("Messages: SendRegistryList: uuid=%s", c.uuid)
+	}
+	hub.SendOrBroadcast(m, c)
 }
 
 func RecvCreateRuleSet(m *Message) {
 	var s registry.Entry
 	json.Unmarshal(m.Data, &s)
 
-	log.Printf("Receiving CreateRuleSet: %s", m.Name)
+	log.Printf("Messages: RecvCreateRuleSet: id=%s", m.Name)
 	err := iptables.CreateRuleSet(m.Name, s.Rule)
 	if err != nil {
 		log.Printf("Failed: CreateRuleSet: %v", err)
@@ -75,7 +96,7 @@ func RecvCreateRuleSet(m *Message) {
 }
 
 func RecvDeleteRuleSet(m *Message) {
-	log.Printf("Receiving DeleteRuleSet: %s", m.Name)
+	log.Printf("Messages: RecvDeleteRuleSet: id=%s", m.Name)
 
 	err := iptables.DeleteRuleSet(m.Name)
 	if err != nil {
@@ -84,24 +105,71 @@ func RecvDeleteRuleSet(m *Message) {
 	}
 }
 
-func SendSynchronizeRegistry(uuid string) { // argument could be a client
-
+func RecvRequestRuleSet(m *Message) {
+	log.Printf("Messages: RecvRequestRuleSet: id=%s", m.Name)
+	SendCreateRuleSet(m.Name, m.client)
 }
 
-func RecvSynchronizeRegistry(m *Message) {
+func RecvRegistryList(m *Message) {
+	var remote, del, add []string
 
+	if m.Epoch <= registry.GetEpoch() {
+		return
+	}
+
+	local := registry.List()
+	json.Unmarshal(m.Data, &remote)
+	log.Printf("Messages: RecvRegistryList: uuid=%s", m.client.uuid)
+
+	// Items to delete from local
+	for m := range local {
+		found := false
+		for n := range remote {
+			if local[m] == remote[n] {
+				found = true
+				break
+			}
+		}
+		if !found {
+			del = append(del, local[m])
+		}
+	}
+
+	// Items to fetch from remote
+	for m := range remote {
+		found := false
+		for n := range local {
+			if remote[m] == local[n] {
+				found = true
+				break
+			}
+		}
+		if !found {
+			add = append(add, remote[m])
+		}
+	}
+
+	for n := range del {
+		err := iptables.DeleteRuleSet(del[n])
+		if err != nil {
+			log.Printf("Failed: DeleteRuleSet: %v", err)
+		}
+	}
+
+	for n := range add {
+		SendRequestRuleSet(add[n], m.client)
+	}
 }
 
-func RecvMessage(data []byte) {
-	var m Message
-	json.Unmarshal(data, &m)
-
+func RecvMessage(m *Message) {
 	switch m.Type {
 	case MessageCreateRuleSet:
-		RecvCreateRuleSet(&m)
+		RecvCreateRuleSet(m)
 	case MessageDeleteRuleSet:
-		RecvDeleteRuleSet(&m)
-	case MessageSynchronizeRegistry:
-		RecvSynchronizeRegistry(&m)
+		RecvDeleteRuleSet(m)
+	case MessageRequestRuleSet:
+		RecvRequestRuleSet(m)
+	case MessageRegistryList:
+		RecvRegistryList(m)
 	}
 }

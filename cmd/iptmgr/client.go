@@ -17,7 +17,7 @@ type Client struct {
 	uuid string
 	addr string
 	conn *websocket.Conn
-	send chan []byte
+	send chan *Message
 }
 
 func (c *Client) Read() {
@@ -35,14 +35,17 @@ func (c *Client) Read() {
 	)
 
 	for {
-		_, message, err := c.conn.ReadMessage()
+		m := &Message{}
+		err := c.conn.ReadJSON(m)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("read error: %v", err)
 			}
 			break
 		}
-		hub.message <- message // Maybe we can call RecvMessage directly here? I am not sure we really need the Hub: go RecvMessage(c, message)
+
+		m.client = c
+		hub.message <- m
 	}
 }
 
@@ -56,7 +59,7 @@ func (c *Client) Write() {
 
 	for {
 		select {
-		case message, ok := <-c.send:
+		case m, ok := <-c.send:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel
@@ -64,7 +67,7 @@ func (c *Client) Write() {
 				return
 			}
 
-			err := c.conn.WriteMessage(websocket.TextMessage, message)
+			err := c.conn.WriteJSON(m)
 			if err != nil {
 				log.Printf("write error: %v", err)
 				return

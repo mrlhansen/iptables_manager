@@ -88,7 +88,7 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Broadcast
-		go SendCreateRuleSet(id)
+		go SendCreateRuleSet(id, nil)
 
 		// Response
 		q := RulesPostResponse{
@@ -114,7 +114,7 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Broadcast
-		go SendDeleteRuleSet(p.Id)
+		go SendDeleteRuleSet(p.Id, nil)
 
 		return
 	}
@@ -150,7 +150,7 @@ func ClusterHandler(w http.ResponseWriter, r *http.Request) {
 		uuid: uuid,
 		addr: r.RemoteAddr,
 		conn: conn,
-		send: make(chan []byte),
+		send: make(chan *Message),
 	}
 
 	hub.join <- client

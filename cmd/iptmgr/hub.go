@@ -13,7 +13,7 @@ import (
 type Hub struct {
 	uuid    string
 	clients map[string]*Client
-	message chan []byte // should this channel be a struct of client + byte array? Then we can easily respond to a given client if needed. first part of message can also be the uuid (36 chars)
+	message chan *Message
 	join    chan *Client
 	leave   chan *Client
 	mu      sync.Mutex
@@ -22,7 +22,7 @@ type Hub struct {
 
 var hub = &Hub{
 	uuid:    uuid.NewString(),
-	message: make(chan []byte),
+	message: make(chan *Message),
 	join:    make(chan *Client),
 	leave:   make(chan *Client),
 	clients: make(map[string]*Client),
@@ -32,19 +32,19 @@ var hub = &Hub{
 func (h *Hub) Run() {
 	for {
 		select {
-		case client := <-h.join:
-			h.clients[client.uuid] = client
-			log.Printf("hub: client joined: addr=%s uuid=%s", client.addr, client.uuid)
-		case client := <-h.leave:
-			close(client.send)
-			delete(h.clients, client.uuid)
-			if _, ok := h.hosts[client.addr]; ok {
-				h.hosts[client.addr] = false
+		case c := <-h.join:
+			log.Printf("Hub: Client joined: addr=%s uuid=%s", c.addr, c.uuid)
+			h.clients[c.uuid] = c
+			SendRegistryList(c)
+		case c := <-h.leave:
+			close(c.send)
+			delete(h.clients, c.uuid)
+			if _, ok := h.hosts[c.addr]; ok {
+				h.hosts[c.addr] = false
 			}
-			log.Printf("hub: client left: addr=%s uuid=%s", client.addr, client.uuid)
-		case message := <-h.message:
-			log.Printf("hub: message received: %s", message)
-			RecvMessage(message)
+			log.Printf("Hub: Client left: addr=%s uuid=%s", c.addr, c.uuid)
+		case m := <-h.message:
+			RecvMessage(m)
 		}
 	}
 }
@@ -54,13 +54,22 @@ func (h *Hub) Exists(uuid string) bool {
 	return ok
 }
 
-func (h *Hub) Broadcast(message []byte) {
-	for _, client := range h.clients {
+func (h *Hub) SendOrBroadcast(m *Message, c *Client) {
+	if c != nil {
 		select {
-		case client.send <- message:
+		case c.send <- m:
 		default:
-			close(client.send)
-			delete(h.clients, client.uuid)
+			close(c.send)
+			delete(h.clients, c.uuid)
+		}
+		return
+	}
+	for _, c := range h.clients {
+		select {
+		case c.send <- m:
+		default:
+			close(c.send)
+			delete(h.clients, c.uuid)
 		}
 	}
 }
@@ -88,7 +97,7 @@ func (h *Hub) Connect(host string) {
 		uuid: resp.Header.Get("Instance-UUID"),
 		addr: host,
 		conn: conn,
-		send: make(chan []byte),
+		send: make(chan *Message),
 	}
 
 	h.hosts[host] = true

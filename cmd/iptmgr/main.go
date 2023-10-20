@@ -85,8 +85,7 @@ func main() {
 	}
 
 	if flagNotPassed("peers") {
-		s := strings.Join(config.Options.Peers, ",")
-		s = getEnvString("PEERS", s)
+		s := getEnvString("PEERS", config.Options.Peers)
 		if len(s) > 0 {
 			peers = s
 		}

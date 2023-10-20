@@ -42,12 +42,10 @@ func (e *Epoch) Now() int64 {
 	return time.Now().UnixMilli()
 }
 
-func (e *Epoch) Update(val int64) {
+func (e *Epoch) Update(val int64) { // Rework Epoch again
 	e.mu.Lock()
 	e.Checksum += val
-	if val > e.Latest {
-		e.Latest = val
-	}
+	e.Latest = e.Now()
 	e.mu.Unlock()
 	e.Store()
 }
