@@ -1,16 +1,12 @@
 package registry
 
 import (
-	"log"
 	"math/rand"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
-	"time"
 )
 
-var epoch int64
 var basepath string
 
 func randomString(n int) string {
@@ -24,39 +20,6 @@ func randomString(n int) string {
 	}
 
 	return sb.String()
-}
-
-func readEpoch() {
-	data, err := readFile("epoch")
-	if err != nil {
-		epoch = 0
-		return
-	}
-
-	epoch, err = strconv.ParseInt(data, 10, 64)
-	if err != nil {
-		epoch = 0
-		return
-	}
-
-	log.Printf("Read epoch %d", epoch)
-}
-
-func writeEpoch() {
-	s := strconv.FormatInt(epoch, 10)
-	err := writeFile("epoch", s)
-	if err != nil {
-		log.Printf("Failed to write epoch")
-	}
-}
-
-func updateEpoch() {
-	epoch = currentEpoch()
-	writeEpoch()
-}
-
-func currentEpoch() int64 {
-	return time.Now().UnixMilli()
 }
 
 func readFile(fn string) (string, error) {

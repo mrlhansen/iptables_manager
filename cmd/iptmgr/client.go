@@ -20,7 +20,7 @@ type Client struct {
 	send chan []byte
 }
 
-func (c *Client) read() {
+func (c *Client) Read() {
 	defer func() {
 		hub.leave <- c
 		c.conn.Close()
@@ -42,11 +42,11 @@ func (c *Client) read() {
 			}
 			break
 		}
-		hub.message <- message
+		hub.message <- message // Maybe we can call RecvMessage directly here? I am not sure we really need the Hub: go RecvMessage(c, message)
 	}
 }
 
-func (c *Client) write() {
+func (c *Client) Write() {
 	ticker := time.NewTicker(pingPeriod)
 
 	defer func() {

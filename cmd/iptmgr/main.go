@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -37,56 +38,70 @@ func onExit(purge bool) {
 }
 
 func main() {
-	var cfgfile string
-	var datadir string
+	var configFile string
+	var dataPath string
+	var logFile string
 	var listen string
-	var logfile string
-	var peer string
-	var purge bool
+	var peers string
+	var purgeOnExit bool
 
 	// Check for root or iptables permissions?
 
-	flag.StringVar(&cfgfile, "config", "config.yml", "Path to configuration file")
-	flag.StringVar(&datadir, "datadir", ".", "Path to persistent data storage")
-	flag.StringVar(&logfile, "logfile", "my.log", "Path to log file")
-	flag.StringVar(&listen, "listen", ":1234", "Listen address for web interface")
-	flag.StringVar(&peer, "peer", "", "List of peers")
-	flag.BoolVar(&purge, "purge-on-exit", false, "Purge all custom chains on exit")
-
+	flag.StringVar(&configFile, "config-file", "config.yml", "Path to configuration file")
+	flag.StringVar(&dataPath, "data-path", ".", "Path to persistent data storage")
+	flag.StringVar(&logFile, "log-file", "my.log", "Path to log file")
+	flag.StringVar(&listen, "listen", ":1234", "Listen address api interface")
+	flag.StringVar(&peers, "peers", "", "Comma separated list of cluster peers")
+	flag.BoolVar(&purgeOnExit, "purge-on-exit", false, "Purge all custom chains on exit")
 	flag.Parse()
-	readConfig(cfgfile)
+
+	if flagNotPassed("config-file") {
+		configFile = getEnvString("CONFIG_FILE", "config.yml")
+	}
+
+	if len(configFile) > 0 {
+		readConfig(configFile)
+	}
 
 	if flagNotPassed("listen") {
-		s := getEnvString("LISTEN", config.Listen)
+		s := getEnvString("LISTEN", config.Options.Listen)
 		if len(s) > 0 {
 			listen = s
 		}
 	}
 
-	if flagNotPassed("datadir") {
-		s := getEnvString("DATADIR", config.DataDir)
+	if flagNotPassed("data-path") {
+		s := getEnvString("DATA_PATH", config.Options.DataPath)
 		if len(s) > 0 {
-			datadir = s
+			dataPath = s
 		}
 	}
 
-	if flagNotPassed("logfile") {
-		s := getEnvString("LOGFILE", config.LogFile)
+	if flagNotPassed("log-file") {
+		s := getEnvString("LOG_FILE", config.Options.LogFile)
 		if len(s) > 0 {
-			logfile = s
+			logFile = s
+		}
+	}
+
+	if flagNotPassed("peers") {
+		s := strings.Join(config.Options.Peers, ",")
+		s = getEnvString("PEERS", s)
+		if len(s) > 0 {
+			peers = s
 		}
 	}
 
 	if flagNotPassed("purge-on-exit") {
-		purge = config.Purge
+		purgeOnExit = config.Options.PurgeOnExit
 	}
 
 	// Configure logging
 	// log.SetFlags(log.LstdFlags | log.Lshortfile)
-	if len(logfile) > 0 {
-		f, err := os.OpenFile(logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0640)
+	if len(logFile) > 0 {
+		f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0640)
 		if err != nil {
-			log.Fatal("Failed to open log file")
+			log.Fatalf("Failed to open log file: %v", err)
 		}
 		w := io.MultiWriter(f, os.Stdout)
 		log.SetOutput(w)
@@ -94,11 +109,12 @@ func main() {
 
 	// Options
 	log.Printf("registered configuration options")
-	log.Printf("> config  = %s", cfgfile)
-	log.Printf("> datadir = %s", datadir)
-	log.Printf("> logfile = %s", logfile)
-	log.Printf("> listen  = %s", listen)
-	log.Printf("> purge-on-exit = %v", purge)
+	log.Printf("config-file = %s", configFile)
+	log.Printf("data-path = %s", dataPath)
+	log.Printf("log-file = %s", logFile)
+	log.Printf("listen = %s", listen)
+	log.Printf("peers = %s", peers)
+	log.Printf("purge-on-exit = %v", purgeOnExit)
 
 	// Create chains
 	err := createChains()
@@ -107,13 +123,13 @@ func main() {
 	}
 
 	// Load static rules
-	err = loadRules(datadir, true)
+	err = loadRules(dataPath, true)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Load registry
-	err = registry.Init(datadir)
+	err = registry.Init(dataPath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -128,13 +144,12 @@ func main() {
 	}
 
 	// Start Hub
-	go hub.run()
-
-	if len(peer) > 0 {
-		hub.connect(peer)
+	go hub.Run()
+	rs = strings.Split(peers, ",")
+	for _, s := range rs {
+		hub.Connect(s)
 	}
-
-	go hub.reconnect() // must go after all connection attempts
+	go hub.Reconnect()
 
 	// HTTP Server
 	mux := http.NewServeMux()
@@ -165,6 +180,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	onExit(purge)
+	onExit(purgeOnExit)
 	cancel()
 }

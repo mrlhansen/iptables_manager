@@ -8,17 +8,22 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type ConfigChains struct {
+type SectionChains struct {
 	Filter []iptables.Chain `yaml:"filter"`
 	Nat    []iptables.Chain `yaml:"nat"`
 }
 
+type SectionOptions struct {
+	DataPath    string   `yaml:"data-path"`
+	LogFile     string   `yaml:"log-file"`
+	Listen      string   `yaml:"listen"`
+	Peers       []string `yaml:"peers"`
+	PurgeOnExit bool     `yaml:"purge-on-exit"`
+}
+
 type Config struct {
-	Listen  string        `yaml:"listen"`
-	Purge   bool          `yaml:"purge-on-exit"`
-	DataDir string        `yaml:"datadir"`
-	LogFile string        `yaml:"logfile"`
-	Chains  *ConfigChains `yaml:"chains"`
+	Options SectionOptions `yaml:"config"`
+	Chains  *SectionChains `yaml:"chains"`
 }
 
 var config = Config{}

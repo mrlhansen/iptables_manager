@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	RuleAppend = 1
-	RuleDelete = 2
-	SyncRules  = 3
+	MessageCreateRuleSet       = 1
+	MessageDeleteRuleSet       = 2
+	MessageRequestRuleSet      = 3 // Response is CreateRuleSet
+	MessageSynchronizeRegistry = 4 // Rename to MessageRegistryList ?
 )
 
 type Message struct {
@@ -20,7 +21,7 @@ type Message struct {
 	Data []byte `json:"data,omitempty"`
 }
 
-func SendRuleAppend(id string) {
+func SendCreateRuleSet(id string) {
 	s := registry.Get(id)
 	if s == nil {
 		return
@@ -32,7 +33,7 @@ func SendRuleAppend(id string) {
 	}
 
 	m := Message{
-		Type: RuleAppend,
+		Type: MessageCreateRuleSet,
 		Name: id,
 		Data: data,
 	}
@@ -42,13 +43,13 @@ func SendRuleAppend(id string) {
 		return
 	}
 
-	log.Printf("broadcasting rule append: %s", id)
-	hub.broadcast(msg)
+	log.Printf("Broadcasting CreateRuleSet: %s", id)
+	hub.Broadcast(msg)
 }
 
-func SendRuleDelete(id string) {
+func SendDeleteRuleSet(id string) {
 	m := Message{
-		Type: RuleDelete,
+		Type: MessageDeleteRuleSet,
 		Name: id,
 	}
 
@@ -57,30 +58,38 @@ func SendRuleDelete(id string) {
 		return
 	}
 
-	log.Printf("broadcasting rule delete: %s", id)
-	hub.broadcast(msg)
+	log.Printf("Broadcasting DeleteRuleSet: %s", id)
+	hub.Broadcast(msg)
 }
 
-func RecvRuleAppend(m *Message) {
+func RecvCreateRuleSet(m *Message) {
 	var s registry.Entry
 	json.Unmarshal(m.Data, &s)
 
-	log.Printf("receiving rule append: %s", m.Name)
-
+	log.Printf("Receiving CreateRuleSet: %s", m.Name)
 	err := iptables.CreateRuleSet(m.Name, s.Rule)
 	if err != nil {
-		log.Print("failed to create rule")
+		log.Printf("Failed: CreateRuleSet: %v", err)
 		return
 	}
 }
 
-func RecvRuleDelete(m *Message) {
-	log.Printf("receiving rule delete: %s", m.Name)
+func RecvDeleteRuleSet(m *Message) {
+	log.Printf("Receiving DeleteRuleSet: %s", m.Name)
+
 	err := iptables.DeleteRuleSet(m.Name)
 	if err != nil {
-		log.Print("failed to delete rule")
+		log.Printf("Failed: DeleteRuleSet: %v", err)
 		return
 	}
+}
+
+func SendSynchronizeRegistry(uuid string) { // argument could be a client
+
+}
+
+func RecvSynchronizeRegistry(m *Message) {
+
 }
 
 func RecvMessage(data []byte) {
@@ -88,9 +97,11 @@ func RecvMessage(data []byte) {
 	json.Unmarshal(data, &m)
 
 	switch m.Type {
-	case RuleAppend:
-		RecvRuleAppend(&m)
-	case RuleDelete:
-		RecvRuleDelete(&m)
+	case MessageCreateRuleSet:
+		RecvCreateRuleSet(&m)
+	case MessageDeleteRuleSet:
+		RecvDeleteRuleSet(&m)
+	case MessageSynchronizeRegistry:
+		RecvSynchronizeRegistry(&m)
 	}
 }

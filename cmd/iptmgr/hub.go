@@ -13,7 +13,7 @@ import (
 type Hub struct {
 	uuid    string
 	clients map[string]*Client
-	message chan []byte
+	message chan []byte // should this channel be a struct of client + byte array? Then we can easily respond to a given client if needed. first part of message can also be the uuid (36 chars)
 	join    chan *Client
 	leave   chan *Client
 	mu      sync.Mutex
@@ -29,7 +29,7 @@ var hub = &Hub{
 	hosts:   make(map[string]bool),
 }
 
-func (h *Hub) run() {
+func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.join:
@@ -49,12 +49,12 @@ func (h *Hub) run() {
 	}
 }
 
-func (h *Hub) exists(uuid string) bool {
+func (h *Hub) Exists(uuid string) bool {
 	_, ok := h.clients[uuid]
 	return ok
 }
 
-func (h *Hub) broadcast(message []byte) {
+func (h *Hub) Broadcast(message []byte) {
 	for _, client := range h.clients {
 		select {
 		case client.send <- message:
@@ -65,7 +65,7 @@ func (h *Hub) broadcast(message []byte) {
 	}
 }
 
-func (h *Hub) connect(host string) {
+func (h *Hub) Connect(host string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -93,11 +93,11 @@ func (h *Hub) connect(host string) {
 
 	h.hosts[host] = true
 	hub.join <- client
-	go client.read()
-	go client.write()
+	go client.Read()
+	go client.Write()
 }
 
-func (h *Hub) reconnect() {
+func (h *Hub) Reconnect() {
 	for {
 		c := h.hosts
 		if len(c) == 0 {
@@ -105,9 +105,17 @@ func (h *Hub) reconnect() {
 		}
 		for host, connected := range c {
 			if !connected {
-				hub.connect(host)
+				hub.Connect(host)
 			}
 		}
 		time.Sleep(5 * time.Second)
 	}
+}
+
+func (h *Hub) Lock() {
+	h.mu.Lock()
+}
+
+func (h *Hub) Unlock() {
+	h.mu.Unlock()
 }

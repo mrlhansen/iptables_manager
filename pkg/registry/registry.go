@@ -12,10 +12,11 @@ type Entry struct {
 }
 
 var reg = map[string]Entry{}
+var epoch Epoch
 var mu sync.Mutex
 
 func GenerateName() (string, int64) {
-	e := currentEpoch()
+	e := epoch.Now()
 	s := fmt.Sprintf("%d+%s", e, randomString(8))
 	return s, e
 }
@@ -46,7 +47,7 @@ func Append(id, s string) error {
 		Rule:  s,
 	}
 
-	updateEpoch()
+	epoch.Update(e)
 	return nil
 }
 
@@ -65,7 +66,7 @@ func Delete(id string) error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	_, ok := reg[id]
+	e, ok := reg[id]
 	if ok {
 		fn := "registry/" + id
 		err := deleteFile(fn)
@@ -74,7 +75,7 @@ func Delete(id string) error {
 		}
 
 		delete(reg, id)
-		updateEpoch()
+		epoch.Update(e.Epoch)
 	}
 
 	return nil
@@ -97,7 +98,8 @@ func Init(path string) error {
 	defer mu.Unlock()
 
 	basepath = path
-	readEpoch()
+	epoch.SetFile(basepath + "/epoch")
+	epoch.Load()
 
 	err := makeDir("registry")
 	if err != nil {
@@ -109,7 +111,7 @@ func Init(path string) error {
 		return fmt.Errorf("registry: failed to list directory: %v", err)
 	}
 
-	if epoch == 0 && len(files) > 0 {
+	if epoch.Latest == 0 && len(files) > 0 {
 		return fmt.Errorf("registry: found existing rules, but epoch is missing")
 	}
 

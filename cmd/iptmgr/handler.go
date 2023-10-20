@@ -76,6 +76,7 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Create rules
 		id, rules, err := iptables.PrepareRuleSet(p.Rules)
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
@@ -86,12 +87,15 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 		}
 
+		// Broadcast
+		go SendCreateRuleSet(id)
+
+		// Response
 		q := RulesPostResponse{
 			Id: id,
 		}
 		json.NewEncoder(w).Encode(q)
 
-		go SendRuleAppend(id) // move this to CreateRuleSet
 		return
 	}
 
@@ -103,12 +107,15 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Delete rules
 		err = iptables.DeleteRuleSet(p.Id)
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 		}
 
-		go SendRuleDelete(p.Id) // move this to DeleteRuleSet
+		// Broadcast
+		go SendDeleteRuleSet(p.Id)
+
 		return
 	}
 
@@ -116,8 +123,8 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ClusterHandler(w http.ResponseWriter, r *http.Request) {
-	hub.mu.Lock()
-	defer hub.mu.Unlock()
+	hub.Lock()
+	defer hub.Unlock()
 
 	ok := Authenticate(w, r, AuthServer)
 	if !ok {
@@ -125,7 +132,7 @@ func ClusterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	uuid := r.Header.Get("Instance-UUID")
-	if hub.exists(uuid) {
+	if hub.Exists(uuid) {
 		http.Error(w, "", http.StatusConflict)
 		return
 	}
@@ -147,6 +154,6 @@ func ClusterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hub.join <- client
-	go client.read()
-	go client.write()
+	go client.Read()
+	go client.Write()
 }
