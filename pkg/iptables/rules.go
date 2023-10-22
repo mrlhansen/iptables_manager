@@ -254,7 +254,7 @@ func PrepareRuleSet(rules []Rule) (string, string, error) {
 	return id, s, nil
 }
 
-func CreateRuleSet(id, s string) error {
+func CreateRuleSet(id, s string, ep int64) error {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -263,7 +263,7 @@ func CreateRuleSet(id, s string) error {
 		return err
 	}
 
-	err = registry.Append(id, s)
+	err = registry.Append(id, s, ep)
 	if err != nil {
 		// roll back and fail - we can call DeleteRules on the same input
 		return err
@@ -272,7 +272,7 @@ func CreateRuleSet(id, s string) error {
 	return nil
 }
 
-func DeleteRuleSet(id string) error {
+func DeleteRuleSet(id string, ep int64) error {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -286,7 +286,7 @@ func DeleteRuleSet(id string) error {
 		return err
 	}
 
-	err = registry.Delete(id)
+	err = registry.Delete(id, ep)
 	if err != nil {
 		return err
 	}

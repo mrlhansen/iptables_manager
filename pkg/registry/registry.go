@@ -16,7 +16,7 @@ var epoch Epoch
 var mu sync.Mutex
 
 func GetEpoch() int64 {
-	return epoch.Latest
+	return epoch.Current
 }
 
 func GenerateName() (string, int64) {
@@ -35,7 +35,7 @@ func ParseName(id string) int64 {
 	return e
 }
 
-func Append(id, s string) error {
+func Append(id, s string, ep int64) error {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -51,7 +51,7 @@ func Append(id, s string) error {
 		Rule:  s,
 	}
 
-	epoch.Update(e)
+	epoch.Update(ep)
 	return nil
 }
 
@@ -66,11 +66,11 @@ func Get(id string) *Entry {
 	return nil
 }
 
-func Delete(id string) error {
+func Delete(id string, ep int64) error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	e, ok := reg[id]
+	_, ok := reg[id]
 	if ok {
 		fn := "registry/" + id
 		err := deleteFile(fn)
@@ -79,7 +79,7 @@ func Delete(id string) error {
 		}
 
 		delete(reg, id)
-		epoch.Update(e.Epoch)
+		epoch.Update(ep)
 	}
 
 	return nil
@@ -102,9 +102,10 @@ func Init(path string) error {
 	defer mu.Unlock()
 
 	basepath = path
+
 	epoch.SetFile(basepath + "/epoch")
 	epoch.Load()
-	log.Printf("epoch loaded: latest=%v checksum=%v", epoch.Latest, epoch.Checksum)
+	log.Printf("registry: epoch loaded: epoch=%d", epoch.Current)
 
 	err := makeDir("registry")
 	if err != nil {
@@ -116,7 +117,7 @@ func Init(path string) error {
 		return fmt.Errorf("registry: failed to list directory: %v", err)
 	}
 
-	if epoch.Latest == 0 && len(files) > 0 {
+	if epoch.Current == 0 && len(files) > 0 {
 		return fmt.Errorf("registry: found existing rules, but epoch is missing")
 	}
 

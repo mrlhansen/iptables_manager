@@ -33,7 +33,7 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case c := <-h.join:
-			log.Printf("Hub: Client joined: addr=%s uuid=%s", c.addr, c.uuid)
+			log.Printf("hub: joined: addr=%s uuid=%s", c.addr, c.uuid)
 			h.clients[c.uuid] = c
 			SendRegistryList(c)
 		case c := <-h.leave:
@@ -42,7 +42,7 @@ func (h *Hub) Run() {
 			if _, ok := h.hosts[c.addr]; ok {
 				h.hosts[c.addr] = false
 			}
-			log.Printf("Hub: Client left: addr=%s uuid=%s", c.addr, c.uuid)
+			log.Printf("hub: left: addr=%s uuid=%s", c.addr, c.uuid)
 		case m := <-h.message:
 			RecvMessage(m)
 		}
@@ -56,21 +56,23 @@ func (h *Hub) Exists(uuid string) bool {
 
 func (h *Hub) SendOrBroadcast(m *Message, c *Client) {
 	if c != nil {
-		select {
-		case c.send <- m:
-		default:
-			close(c.send)
-			delete(h.clients, c.uuid)
-		}
+		c.send <- m
+		// select {
+		// case c.send <- m:
+		// default:
+		// 	close(c.send)
+		// 	delete(h.clients, c.uuid)
+		// }
 		return
 	}
 	for _, c := range h.clients {
-		select {
-		case c.send <- m:
-		default:
-			close(c.send)
-			delete(h.clients, c.uuid)
-		}
+		c.send <- m
+		// select {
+		// case c.send <- m:
+		// default:
+		// 	close(c.send)
+		// 	delete(h.clients, c.uuid)
+		// }
 	}
 }
 

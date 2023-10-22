@@ -82,7 +82,7 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 		}
 
-		err = iptables.CreateRuleSet(id, rules)
+		err = iptables.CreateRuleSet(id, rules, 0)
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 		}
@@ -108,7 +108,7 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Delete rules
-		err = iptables.DeleteRuleSet(p.Id)
+		err = iptables.DeleteRuleSet(p.Id, 0)
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 		}
@@ -142,7 +142,7 @@ func ClusterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	conn, err := upgrader.Upgrade(w, r, header)
 	if err != nil {
-		log.Printf("upgrade failed: %v", err)
+		log.Printf("handler: upgrade failed: %v", err)
 		return
 	}
 

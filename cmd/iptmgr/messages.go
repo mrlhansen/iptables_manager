@@ -35,9 +35,10 @@ func SendCreateRuleSet(id string, c *Client) {
 	}
 
 	m := &Message{
-		Type: MessageCreateRuleSet,
-		Name: id,
-		Data: data,
+		Type:  MessageCreateRuleSet,
+		Epoch: registry.GetEpoch(),
+		Name:  id,
+		Data:  data,
 	}
 
 	log.Printf("Messages: SendCreateRuleSet: id=%s", id)
@@ -46,8 +47,9 @@ func SendCreateRuleSet(id string, c *Client) {
 
 func SendDeleteRuleSet(id string, c *Client) {
 	m := &Message{
-		Type: MessageDeleteRuleSet,
-		Name: id,
+		Type:  MessageDeleteRuleSet,
+		Epoch: registry.GetEpoch(),
+		Name:  id,
 	}
 
 	log.Printf("Messages: SendDeleteRuleSet: id=%s", id)
@@ -78,7 +80,7 @@ func SendRegistryList(c *Client) {
 	}
 
 	if c != nil {
-		log.Printf("Messages: SendRegistryList: uuid=%s", c.uuid)
+		log.Printf("Messages: SendRegistryList: uuid=%s epoch=%d", c.uuid, m.Epoch)
 	}
 	hub.SendOrBroadcast(m, c)
 }
@@ -88,7 +90,7 @@ func RecvCreateRuleSet(m *Message) {
 	json.Unmarshal(m.Data, &s)
 
 	log.Printf("Messages: RecvCreateRuleSet: id=%s", m.Name)
-	err := iptables.CreateRuleSet(m.Name, s.Rule)
+	err := iptables.CreateRuleSet(m.Name, s.Rule, m.Epoch)
 	if err != nil {
 		log.Printf("Failed: CreateRuleSet: %v", err)
 		return
@@ -98,7 +100,7 @@ func RecvCreateRuleSet(m *Message) {
 func RecvDeleteRuleSet(m *Message) {
 	log.Printf("Messages: RecvDeleteRuleSet: id=%s", m.Name)
 
-	err := iptables.DeleteRuleSet(m.Name)
+	err := iptables.DeleteRuleSet(m.Name, m.Epoch)
 	if err != nil {
 		log.Printf("Failed: DeleteRuleSet: %v", err)
 		return
@@ -113,13 +115,13 @@ func RecvRequestRuleSet(m *Message) {
 func RecvRegistryList(m *Message) {
 	var remote, del, add []string
 
+	log.Printf("Messages: RecvRegistryList: uuid=%s epoch=%d", m.client.uuid, m.Epoch)
 	if m.Epoch <= registry.GetEpoch() {
 		return
 	}
 
 	local := registry.List()
 	json.Unmarshal(m.Data, &remote)
-	log.Printf("Messages: RecvRegistryList: uuid=%s", m.client.uuid)
 
 	// Items to delete from local
 	for m := range local {
@@ -150,7 +152,7 @@ func RecvRegistryList(m *Message) {
 	}
 
 	for n := range del {
-		err := iptables.DeleteRuleSet(del[n])
+		err := iptables.DeleteRuleSet(del[n], m.Epoch)
 		if err != nil {
 			log.Printf("Failed: DeleteRuleSet: %v", err)
 		}
