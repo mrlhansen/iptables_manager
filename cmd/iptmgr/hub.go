@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -11,17 +12,20 @@ import (
 )
 
 type Hub struct {
-	uuid    string
-	clients map[string]*Client
-	message chan *Message
-	join    chan *Client
-	leave   chan *Client
-	mu      sync.Mutex
-	hosts   map[string]bool
+	uuid     string
+	priority uint
+	active   bool
+	clients  map[string]*Client
+	message  chan *Message
+	join     chan *Client
+	leave    chan *Client
+	hosts    map[string]bool
+	mu       sync.Mutex
 }
 
 var hub = &Hub{
 	uuid:    uuid.NewString(),
+	active:  true,
 	message: make(chan *Message),
 	join:    make(chan *Client),
 	leave:   make(chan *Client),
@@ -29,24 +33,48 @@ var hub = &Hub{
 	hosts:   make(map[string]bool),
 }
 
+func (h *Hub) CheckPriority() {
+	active := true
+	for _, c := range h.clients {
+		if c.priority > h.priority {
+			active = false
+			break
+		}
+	}
+	if h.active != active {
+		if active {
+			log.Print("I am now active!")
+		} else {
+			log.Print("I am now backup!")
+		}
+		h.active = active
+	}
+}
+
 func (h *Hub) Run() {
 	for {
 		select {
 		case c := <-h.join:
-			log.Printf("hub: joined: addr=%s uuid=%s", c.addr, c.uuid)
+			log.Printf("hub: joined: addr=%s uuid=%s priority=%d", c.addr, c.uuid, c.priority)
 			h.clients[c.uuid] = c
 			SendRegistryList(c)
+			h.CheckPriority()
 		case c := <-h.leave:
 			close(c.send)
 			delete(h.clients, c.uuid)
 			if _, ok := h.hosts[c.addr]; ok {
 				h.hosts[c.addr] = false
 			}
-			log.Printf("hub: left: addr=%s uuid=%s", c.addr, c.uuid)
+			h.CheckPriority()
+			log.Printf("hub: left: addr=%s uuid=%s priority=%d", c.addr, c.uuid, c.priority)
 		case m := <-h.message:
 			RecvMessage(m)
 		}
 	}
+}
+
+func (h *Hub) SetPriority(p uint) {
+	h.priority = p
 }
 
 func (h *Hub) Exists(uuid string) bool {
@@ -82,13 +110,17 @@ func (h *Hub) Connect(host string) {
 
 	url := "ws://" + host + "/api/v1/cluster"
 	header := http.Header{
-		"Instance-UUID": []string{h.uuid},
+		"Instance-UUID":     []string{h.uuid},
+		"Instance-Priority": []string{fmt.Sprint(h.priority)},
 	}
 
 	conn, resp, err := websocket.DefaultDialer.Dial(url, header)
 	if resp != nil {
-		if resp.StatusCode == http.StatusConflict {
+		if resp.StatusCode == StatusAlreadyConnected {
 			delete(h.hosts, host)
+		}
+		if resp.StatusCode == StatusPriorityConflict {
+			log.Fatalf("hub: priority conflict: host=%s", host)
 		}
 	}
 	if err != nil {
@@ -96,10 +128,11 @@ func (h *Hub) Connect(host string) {
 	}
 
 	client := &Client{
-		uuid: resp.Header.Get("Instance-UUID"),
-		addr: host,
-		conn: conn,
-		send: make(chan *Message),
+		uuid:     resp.Header.Get("Instance-UUID"),
+		priority: strToUint(resp.Header.Get("Instance-Priority")),
+		addr:     host,
+		conn:     conn,
+		send:     make(chan *Message),
 	}
 
 	h.hosts[host] = true

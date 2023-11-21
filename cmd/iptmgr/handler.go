@@ -19,6 +19,11 @@ var upgrader = websocket.Upgrader{
 }
 
 const (
+	StatusAlreadyConnected = 461
+	StatusPriorityConflict = 462
+)
+
+const (
 	AuthNone   int = 1
 	AuthClient int = 2
 	AuthServer int = 3
@@ -133,12 +138,20 @@ func ClusterHandler(w http.ResponseWriter, r *http.Request) {
 
 	uuid := r.Header.Get("Instance-UUID")
 	if hub.Exists(uuid) {
-		http.Error(w, "", http.StatusConflict)
+		http.Error(w, "", StatusAlreadyConnected)
+		return
+	}
+
+	priority := strToUint(r.Header.Get("Instance-Priority"))
+	if hub.priority == priority {
+		log.Printf("handler: priority conflict: uuid=%s", uuid)
+		http.Error(w, "", StatusPriorityConflict)
 		return
 	}
 
 	header := http.Header{
-		"Instance-UUID": []string{hub.uuid},
+		"Instance-UUID":     []string{hub.uuid},
+		"Instance-Priority": []string{fmt.Sprint(hub.priority)},
 	}
 	conn, err := upgrader.Upgrade(w, r, header)
 	if err != nil {
@@ -147,10 +160,11 @@ func ClusterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &Client{
-		uuid: uuid,
-		addr: r.RemoteAddr,
-		conn: conn,
-		send: make(chan *Message),
+		uuid:     uuid,
+		priority: priority,
+		addr:     r.RemoteAddr,
+		conn:     conn,
+		send:     make(chan *Message),
 	}
 
 	hub.join <- client

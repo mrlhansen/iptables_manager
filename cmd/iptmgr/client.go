@@ -14,10 +14,11 @@ const (
 )
 
 type Client struct {
-	uuid string
-	addr string
-	conn *websocket.Conn
-	send chan *Message
+	uuid     string
+	addr     string
+	priority uint
+	conn     *websocket.Conn
+	send     chan *Message
 }
 
 func (c *Client) Read() {

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -37,12 +38,21 @@ func onExit(purge bool) {
 	}
 }
 
+func strToUint(s string) uint {
+	p, err := strconv.ParseUint(s, 10, 0)
+	if err != nil {
+		return 0
+	}
+	return uint(p)
+}
+
 func main() {
 	var configFile string
 	var dataPath string
 	var logFile string
 	var listen string
 	var peers string
+	var priority uint
 	var purgeOnExit bool
 
 	// Check for root or iptables permissions?
@@ -53,6 +63,7 @@ func main() {
 	flag.StringVar(&listen, "listen", ":1234", "Listen address api interface")
 	flag.StringVar(&peers, "peers", "", "Comma separated list of cluster peers")
 	flag.BoolVar(&purgeOnExit, "purge-on-exit", false, "Purge all custom chains on exit")
+	flag.UintVar(&priority, "priority", 0, "Priority for this instance")
 	flag.Parse()
 
 	if flagNotPassed("config-file") {
@@ -91,6 +102,13 @@ func main() {
 		}
 	}
 
+	if flagNotPassed("priority") {
+		s := getEnvUint("PRIORITY", config.Options.Priority)
+		if s > 0 {
+			priority = s
+		}
+	}
+
 	if flagNotPassed("purge-on-exit") {
 		purgeOnExit = config.Options.PurgeOnExit
 	}
@@ -114,6 +132,7 @@ func main() {
 	log.Printf("listen = %s", listen)
 	log.Printf("peers = %s", peers)
 	log.Printf("purge-on-exit = %v", purgeOnExit)
+	log.Printf("priority = %v", priority)
 
 	// Create chains
 	err := createChains()
@@ -143,6 +162,7 @@ func main() {
 	}
 
 	// Start Hub
+	hub.SetPriority(priority)
 	go hub.Run()
 	rs = strings.Split(peers, ",")
 	for _, s := range rs {
@@ -171,7 +191,7 @@ func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT)
 
-	s := <-sigs
+	s := <-sigs // we could make another channel here, use a select, and then we could internally force a controlled quit
 	log.Printf("Caught %v signal, exiting...", s)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/mrlhansen/iptables_manager/pkg/iptables"
 	"gopkg.in/yaml.v2"
@@ -19,6 +20,7 @@ type SectionOptions struct {
 	Listen      string `yaml:"listen"`
 	Peers       string `yaml:"peers"`
 	PurgeOnExit bool   `yaml:"purge-on-exit"`
+	Priority    uint   `yaml:"priority"`
 }
 
 type Config struct {
@@ -34,6 +36,18 @@ func getEnvString(env string, def string) string {
 		return def
 	}
 	return value
+}
+
+func getEnvUint(env string, def uint) uint {
+	s := os.Getenv(env)
+	if len(s) == 0 {
+		return def
+	}
+	value, err := strconv.ParseUint(s, 10, 0)
+	if err != nil {
+		return def
+	}
+	return uint(value)
 }
 
 func readConfig(fn string) {
