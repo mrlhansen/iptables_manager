@@ -1,0 +1,22 @@
+{
+    "rules":[
+        {
+            "table":"filter",
+            "chain":"forward",
+            "action":"accept",
+            "sourceSubnet": "172.17.0.0/16"
+        },
+        {
+            "table":"filter",
+            "chain":"forward",
+            "action":"accept",
+            "sourceInterface":"bond0"
+        }
+    ],
+    "ipv4":[
+        {
+            "cidr": "172.18.0.1/16",
+            "netdev": "enp4s0"
+        }
+    ]
+}

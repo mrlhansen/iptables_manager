@@ -9,12 +9,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/mrlhansen/iptables_manager/pkg/ipv4"
 )
 
 type Hub struct {
 	uuid     string
 	priority uint
-	active   bool
 	clients  map[string]*Client
 	message  chan *Message
 	join     chan *Client
@@ -25,7 +25,6 @@ type Hub struct {
 
 var hub = &Hub{
 	uuid:    uuid.NewString(),
-	active:  true,
 	message: make(chan *Message),
 	join:    make(chan *Client),
 	leave:   make(chan *Client),
@@ -41,14 +40,7 @@ func (h *Hub) CheckPriority() {
 			break
 		}
 	}
-	if h.active != active {
-		if active {
-			log.Print("I am now active!")
-		} else {
-			log.Print("I am now backup!")
-		}
-		h.active = active
-	}
+	ipv4.SetState(active)
 }
 
 func (h *Hub) Run() {

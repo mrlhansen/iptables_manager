@@ -1,0 +1,16 @@
+config:
+  purge-on-exit: false
+chains:
+  filter:
+    - name: iptmgr-forward
+      parent: forward
+      default: true
+    - name: iptmgr-input
+      parent: input
+    - name: iptmgr2-input
+      parent: iptmgr-input
+  nat:
+    - name: iptmgr-prerouting
+      parent: prerouting
+    - name: iptmgr-postrouting
+      parent: postrouting

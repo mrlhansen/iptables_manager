@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/mrlhansen/iptables_manager/pkg/iptables"
+	"github.com/mrlhansen/iptables_manager/pkg/ipv4"
 	"github.com/mrlhansen/iptables_manager/pkg/registry"
 )
 
@@ -30,6 +31,7 @@ func flagNotPassed(name string) bool {
 func onExit(purge bool) {
 	// we might want to expand this function to also remove static rules and all rules (not just chains)
 	// gracefully close connections to clients
+	ipv4.SetState(false)
 	if purge {
 		err := iptables.PurgeChains()
 		if err != nil {

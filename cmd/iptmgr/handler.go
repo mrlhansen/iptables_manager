@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/mrlhansen/iptables_manager/pkg/iptables"
+	"github.com/mrlhansen/iptables_manager/pkg/ipv4"
 )
 
 var upgrader = websocket.Upgrader{
@@ -31,6 +32,7 @@ const (
 
 type RulesPostRequest struct {
 	Rules []iptables.Rule `json:"rules"`
+	IPv4  []ipv4.Address  `json:"ipv4"`
 }
 
 type RulesPostResponse struct {
@@ -81,6 +83,9 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// move all of this into a new function ...
+		// need to check what is populated (maybe only rules, maybe only ips)
+
 		// Create rules
 		id, rules, err := iptables.PrepareRuleSet(p.Rules)
 		if err != nil {
@@ -91,6 +96,9 @@ func RulesHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 		}
+
+		ipv4.CreateAddress(&p.IPv4[0])
+		// ... until here
 
 		// Broadcast
 		go SendCreateRuleSet(id, nil)
