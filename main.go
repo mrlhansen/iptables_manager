@@ -1,26 +1,26 @@
 package main
 
 import (
-	"flag"
 	"bytes"
-	"io/ioutil"
+	"flag"
+	"fmt"
+	"log"
 	"os"
 	"os/exec"
-	"strings"
 	"sort"
-	"log"
+	"strings"
 )
 
 func lsdir(path string) []string {
 	var files []string
 
-	list, err := ioutil.ReadDir(path)
+	list, err := os.ReadDir(path)
 	if err != nil {
 		log.Fatal("unable to read directory ", path)
 	}
 
-	for _,file := range list {
-		if file.IsDir() == false {
+	for _, file := range list {
+		if !file.IsDir() {
 			files = append(files, path+"/"+file.Name())
 		}
 	}
@@ -33,7 +33,7 @@ func read_rules(filename string, replace bool) []string {
 	var lines []string
 	var text string
 
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatal("unable to read file ", filename)
 	} else {
@@ -50,7 +50,7 @@ func read_rules(filename string, replace bool) []string {
 	}
 
 	lines = strings.Split(text, "\n")
-	for i,line := range lines {
+	for i, line := range lines {
 		line = strings.TrimSpace(line)
 		if len(line) > 0 && line[0] == '#' {
 			line = ""
@@ -61,16 +61,16 @@ func read_rules(filename string, replace bool) []string {
 	return lines
 }
 
-func apply_rules(filename string, rules []string) bool {
+func apply_rules(filename string, rules []string, iptcmd string) bool {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	for i,rule := range rules {
+	for i, rule := range rules {
 		if len(rule) == 0 {
 			continue
 		}
 
-		cmd := exec.Command("bash", "-c", "iptables -w " + rule)
+		cmd := exec.Command("bash", "-c", fmt.Sprintf("%s -w %s", iptcmd, rule))
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		err := cmd.Run()
@@ -85,51 +85,104 @@ func apply_rules(filename string, rules []string) bool {
 	return true
 }
 
-func manager_start(path string) {
-	file := path + "/start.rules"
-	files := lsdir(path + "/rules.d")
-	rules := read_rules(file, false)
-
-	ok := apply_rules(file, rules)
-	if !ok {
-		os.Exit(1)
-	}
-
-	for _,file = range files {
-		rules = read_rules(file, true)
-		ok := apply_rules(file, rules)
+func manager_load_rules(path, iptcmd string) bool {
+	files := lsdir(path)
+	for _, file := range files {
+		rules := read_rules(file, true)
+		ok := apply_rules(file, rules, iptcmd)
 		if !ok {
-			manager_stop(path)
-			os.Exit(1)
+			return false
 		}
+	}
+	return true
+}
+
+func manager_load_chains(file, iptcmd string) bool {
+	rules := read_rules(file, false)
+	ok := apply_rules(file, rules, iptcmd)
+	return ok
+}
+
+func manager_stop(path string, ipv4, ipv6 bool) {
+	if ipv4 {
+		manager_load_chains(path+"/stop4.rules", "iptables")
+	}
+	if ipv6 {
+		manager_load_chains(path+"/stop6.rules", "ip6tables")
 	}
 }
 
-func manager_stop(path string) {
-	file := path + "/stop.rules"
-	rules := read_rules(file, false)
-
-	ok := apply_rules(file, rules)
-	if !ok {
-		os.Exit(1)
+func manager_start(path string, ipv4, ipv6 bool) bool {
+	if ipv4 {
+		ok := manager_load_chains(path+"/start4.rules", "iptables")
+		if !ok {
+			return false
+		}
 	}
+	if ipv6 {
+		ok := manager_load_chains(path+"/start6.rules", "ip6tables")
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func manager_rules(path string, ipv4, ipv6 bool) bool {
+	if ipv4 {
+		ok := manager_load_rules(path+"/rules4.d", "iptables")
+		if !ok {
+			return false
+		}
+	}
+	if ipv6 {
+		ok := manager_load_rules(path+"/rules6.d", "ip6tables")
+		if !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func main() {
-	var path string
-	var start *bool
-	var stop *bool
+	var (
+		path  string
+		start bool
+		stop  bool
+		ipv4  bool
+		ipv6  bool
+	)
 
+	// Parse flags
 	flag.StringVar(&path, "confdir", "/etc/iptmgr", "path to the configuration directory")
-	start = flag.Bool("start", false, "start the manager")
-	stop = flag.Bool("stop", false, "stop the manager")
+	flag.BoolVar(&start, "start", false, "start the manager")
+	flag.BoolVar(&stop, "stop", false, "stop the manager")
+	flag.BoolVar(&ipv4, "no-ipv4", false, "disable ipv4 rules")
+	flag.BoolVar(&ipv6, "no-ipv6", false, "disable ipv6 rules")
 	flag.Parse()
 
-	if *stop {
-		manager_stop(path)
+	// Toogle
+	ipv4 = !ipv4
+	ipv6 = !ipv6
+
+	// Remove chains
+	if stop {
+		manager_stop(path, ipv4, ipv6)
 	}
 
-	if *start {
-		manager_start(path)
+	// Create chains
+	if start {
+		ok := manager_start(path, ipv4, ipv6)
+		if !ok {
+			os.Exit(1)
+		}
+	}
+
+	// Load rules
+	if start {
+		ok := manager_rules(path, ipv4, ipv6)
+		if !ok {
+			manager_stop(path, ipv4, ipv6)
+		}
 	}
 }

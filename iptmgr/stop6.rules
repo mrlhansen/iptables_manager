@@ -1,0 +1,11 @@
+-D INPUT -j iptmgr-input
+-D OUTPUT -j iptmgr-output
+-D FORWARD -j iptmgr-forward
+
+-F iptmgr-input
+-F iptmgr-output
+-F iptmgr-forward
+
+-X iptmgr-input
+-X iptmgr-output
+-X iptmgr-forward

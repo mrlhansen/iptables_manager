@@ -12,12 +12,16 @@ The program accepts three arguments. The start and stop options can be added at 
 ```
 Usage of iptables_manager:
 -confdir string
-	  path to the configuration directory (default "/etc/iptmgr")
+	path to the configuration directory (default "/etc/iptmgr")
+-no-ipv4
+    disable ipv4 rules
+-no-ipv6
+    disable ipv6 rules
 -start
-	  start the manager
+	start the manager
 -stop
-	  stop the manager
+	stop the manager
 ```
 
 ## Operation
-When the program starts it will initialize a new set of chains using the rules in `<confdir>/start.rules` and when it stops it will delete these chains by reading the rules in `<confdir>/stop.rules`. Editing these two files might prevent the program from working properly, but they are kept as external files for flexibility. On startup, after initializing the new chains, it will proceed to read and apply the rules from all files in `<confdir>/rules.d` in ordered sequence.
+When the program starts it will initialize a new set of chains using the rules in `<confdir>/startX.rules` and when it stops it will delete these chains by reading the rules in `<confdir>/stopX.rules`. Editing these files might prevent the program from working properly, but they are kept as external files for flexibility. On startup, after initializing the new chains, it will proceed to read and apply the rules from all files in `<confdir>/rulesX.d` in ordered sequence.

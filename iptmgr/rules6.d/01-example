@@ -1,0 +1,2 @@
+# Accept forwarding
+-A FORWARD -d fe80::/8 -j ACCEPT
